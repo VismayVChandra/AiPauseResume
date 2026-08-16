@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --radius: 0.5rem;
+
+  /* Paper & ink palette, ported from the v0 design */
+  --background: oklch(0.981 0.006 83);
+  --foreground: oklch(0.24 0.012 255);
+
+  --card: oklch(0.997 0.002 83);
+  --card-foreground: oklch(0.24 0.012 255);
+
+  --primary: oklch(0.26 0.014 255);
+  --primary-foreground: oklch(0.985 0.005 83);
+
+  --muted: oklch(0.955 0.007 83);
+  --muted-foreground: oklch(0.505 0.012 255);
+
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.985 0.005 83);
+
+  --border: oklch(0.9 0.008 83);
+  --ring: oklch(0.52 0.09 168);
+
+  /* Brand accent: calm pine green for progress/success */
+  --brand: oklch(0.5 0.088 168);
+  --brand-foreground: oklch(0.985 0.005 83);
+  --brand-muted: oklch(0.93 0.03 168);
+
+  /* Paper surfaces (the resume "sheet") */
+  --paper: oklch(0.998 0.001 83);
+  --paper-edge: oklch(0.9 0.008 83);
+
+  /* LinkedIn-source indicator — muted steel blue, distinct from brand green */
+  --linkedin: oklch(0.5 0.06 245);
+  --linkedin-muted: oklch(0.93 0.025 245);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "ss01", "cv01";
+}
+
+::selection {
+  background: var(--brand-muted);
+}
