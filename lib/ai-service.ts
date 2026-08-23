@@ -28,23 +28,54 @@ function extractJson(text: string): unknown {
   return JSON.parse(cleaned);
 }
 
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 600;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Only retries transient failures: a malformed-JSON response a fresh call
+// might not repeat, or the API's own network/5xx/rate-limit errors. A
+// genuine schema mismatch happens *after* this function returns (zod
+// validation in the caller), so it's never retried here — retrying a
+// prompt/schema mismatch just burns quota for the same wrong answer.
+function isRetryableError(err: unknown): boolean {
+  if (err instanceof SyntaxError) return true; // JSON.parse failure
+  const message = err instanceof Error ? err.message : String(err);
+  return /\b5\d\d\b|429|rate.?limit|timeout|network|fetch failed|ECONNRESET|ETIMEDOUT/i.test(
+    message
+  );
+}
+
 async function callStrictJson(system: string, user: string): Promise<unknown> {
   const client = getClient();
-  const response = await client.models.generateContent({
-    model: MODEL,
-    contents: user,
-    config: {
-      systemInstruction: system,
-      responseMimeType: "application/json",
-      maxOutputTokens: 4096,
-    },
-  });
+  let lastError: unknown;
 
-  const text = response.text;
-  if (!text) {
-    throw new Error("AI response contained no text content.");
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.models.generateContent({
+        model: MODEL,
+        contents: user,
+        config: {
+          systemInstruction: system,
+          responseMimeType: "application/json",
+          maxOutputTokens: 4096,
+        },
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error("AI response contained no text content.");
+      }
+      return extractJson(text);
+    } catch (err) {
+      lastError = err;
+      if (attempt === MAX_RETRIES || !isRetryableError(err)) throw err;
+      await sleep(RETRY_BASE_DELAY_MS * 2 ** attempt);
+    }
   }
-  return extractJson(text);
+  throw lastError;
 }
 
 const EXTRACT_SYSTEM_PROMPT = `You extract structured career data from a person's LinkedIn export or pasted profile text.
@@ -249,7 +280,10 @@ export const AIService = {
       );
     }
     // templateId is a user choice made on the template step, not an AI
-    // decision — set it here regardless of what (if anything) the model returned.
+    // decision — set it here regardless of what (if anything) the model
+    // returned. hiddenSections/accentColor are also user-only layout
+    // choices with no prior value to carry on a fresh tailor, so they
+    // just take the schema default (nothing hidden, template's own color).
     return { ...parsed.data, templateId };
   },
 
@@ -306,6 +340,8 @@ export const AIService = {
       templateId: resume.templateId,
       interests: resume.interests,
       portfolioLink: resume.portfolioLink,
+      hiddenSections: resume.hiddenSections,
+      accentColor: resume.accentColor,
     };
   },
 

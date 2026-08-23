@@ -449,6 +449,7 @@ export default function Home() {
                   coverLetter={coverLetter}
                   onCoverLetterChange={saveCoverLetter}
                   onChangeTemplate={(id) => saveEdits({ ...resume, templateId: id })}
+                  onChangeAccentColor={(color) => saveEdits({ ...resume, accentColor: color })}
                   onBack={() => setStep("interview")}
                   onTailorAnotherRole={
                     careerProfileId

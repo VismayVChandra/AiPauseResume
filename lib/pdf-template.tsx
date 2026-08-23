@@ -25,6 +25,13 @@ function contactParts(resume: TailoredResume) {
 const disclaimer =
   "Generated with AI assistance — review all details for accuracy before submitting.";
 
+// User-controlled layout choices — never set by the AI. Classic
+// deliberately never reads accentColor: its whole pitch is "no color,
+// maximum ATS compatibility."
+function isHidden(resume: TailoredResume, section: "projects" | "certifications" | "extras") {
+  return resume.hiddenSections.includes(section);
+}
+
 /* ---------------------------------------------------------------------- */
 /* Classic — single column, no color, maximum ATS compatibility           */
 /* ---------------------------------------------------------------------- */
@@ -94,7 +101,7 @@ function ClassicResumeDocument({ resume }: { resume: TailoredResume }) {
           </>
         ) : null}
 
-        {resume.projects.length ? (
+        {resume.projects.length && !isHidden(resume, "projects") ? (
           <>
             <Text style={s.sectionTitle}>Projects</Text>
             {resume.projects.map((p, i) => (
@@ -133,7 +140,7 @@ function ClassicResumeDocument({ resume }: { resume: TailoredResume }) {
           </>
         ) : null}
 
-        {resume.certifications.length ? (
+        {resume.certifications.length && !isHidden(resume, "certifications") ? (
           <>
             <Text style={s.sectionTitle}>Certifications</Text>
             {resume.certifications.map((c, i) => (
@@ -146,7 +153,7 @@ function ClassicResumeDocument({ resume }: { resume: TailoredResume }) {
           </>
         ) : null}
 
-        {resume.interests ? (
+        {resume.interests && !isHidden(resume, "extras") ? (
           <>
             <Text style={s.sectionTitle}>Interests</Text>
             <Text style={s.summary}>{resume.interests}</Text>
@@ -207,6 +214,10 @@ const modernStyles = StyleSheet.create({
 
 function ModernResumeDocument({ resume }: { resume: TailoredResume }) {
   const s = modernStyles;
+  // Only the main content area's section titles pick up a custom accent —
+  // the sidebar's light-blue labels stay fixed so they're always readable
+  // against its dark navy background regardless of what color is chosen.
+  const accentStyle = resume.accentColor ? { color: resume.accentColor } : {};
   return (
     <Document title={`${resume.fullName} - Resume`}>
       <Page size="A4" style={s.page}>
@@ -250,7 +261,7 @@ function ModernResumeDocument({ resume }: { resume: TailoredResume }) {
             </>
           ) : null}
 
-          {resume.certifications.length ? (
+          {resume.certifications.length && !isHidden(resume, "certifications") ? (
             <>
               <Text style={s.sideSectionTitle}>Certifications</Text>
               {resume.certifications.map((c, i) => (
@@ -262,7 +273,7 @@ function ModernResumeDocument({ resume }: { resume: TailoredResume }) {
             </>
           ) : null}
 
-          {resume.interests ? (
+          {resume.interests && !isHidden(resume, "extras") ? (
             <>
               <Text style={s.sideSectionTitle}>Interests</Text>
               <Text style={s.sideLine}>{resume.interests}</Text>
@@ -273,14 +284,14 @@ function ModernResumeDocument({ resume }: { resume: TailoredResume }) {
         <View style={s.main}>
           {resume.summary ? (
             <>
-              <Text style={s.mainSectionTitle}>Summary</Text>
+              <Text style={[s.mainSectionTitle, accentStyle]}>Summary</Text>
               <Text style={s.summary}>{resume.summary}</Text>
             </>
           ) : null}
 
           {resume.experience.length ? (
             <>
-              <Text style={s.mainSectionTitle}>Experience</Text>
+              <Text style={[s.mainSectionTitle, accentStyle]}>Experience</Text>
               {resume.experience.map((exp, i) => (
                 <View key={i} style={s.entryBlock} wrap={false}>
                   <View style={s.entryHeader}>
@@ -300,9 +311,9 @@ function ModernResumeDocument({ resume }: { resume: TailoredResume }) {
             </>
           ) : null}
 
-          {resume.projects.length ? (
+          {resume.projects.length && !isHidden(resume, "projects") ? (
             <>
-              <Text style={s.mainSectionTitle}>Projects</Text>
+              <Text style={[s.mainSectionTitle, accentStyle]}>Projects</Text>
               {resume.projects.map((p, i) => (
                 <View key={i} style={s.entryBlock} wrap={false}>
                   <Text style={s.entryTitle}>
@@ -357,6 +368,7 @@ const minimalStyles = StyleSheet.create({
 
 function MinimalResumeDocument({ resume }: { resume: TailoredResume }) {
   const s = minimalStyles;
+  const accentStyle = resume.accentColor ? { color: resume.accentColor } : {};
   return (
     <Document title={`${resume.fullName} - Resume`}>
       <Page size="A4" style={s.page}>
@@ -368,14 +380,14 @@ function MinimalResumeDocument({ resume }: { resume: TailoredResume }) {
 
         {resume.summary ? (
           <>
-            <Text style={s.sectionTitle}>Summary</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Summary</Text>
             <Text style={s.summary}>{resume.summary}</Text>
           </>
         ) : null}
 
         {resume.experience.length ? (
           <>
-            <Text style={s.sectionTitle}>Experience</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Experience</Text>
             {resume.experience.map((exp, i) => (
               <View key={i} wrap={false}>
                 <View style={s.entryHeader}>
@@ -395,9 +407,9 @@ function MinimalResumeDocument({ resume }: { resume: TailoredResume }) {
           </>
         ) : null}
 
-        {resume.projects.length ? (
+        {resume.projects.length && !isHidden(resume, "projects") ? (
           <>
-            <Text style={s.sectionTitle}>Projects</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Projects</Text>
             {resume.projects.map((p, i) => (
               <View key={i} wrap={false}>
                 <Text style={s.entryTitle}>
@@ -417,7 +429,7 @@ function MinimalResumeDocument({ resume }: { resume: TailoredResume }) {
 
         {resume.education.length ? (
           <>
-            <Text style={s.sectionTitle}>Education</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Education</Text>
             {resume.education.map((ed, i) => (
               <View key={i} style={s.entryHeader}>
                 <Text style={s.entryTitle}>{eduLine(ed)}</Text>
@@ -429,14 +441,14 @@ function MinimalResumeDocument({ resume }: { resume: TailoredResume }) {
 
         {resume.skills.length ? (
           <>
-            <Text style={s.sectionTitle}>Skills</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Skills</Text>
             <Text style={s.skillsRow}>{resume.skills.join("   ·   ")}</Text>
           </>
         ) : null}
 
-        {resume.certifications.length ? (
+        {resume.certifications.length && !isHidden(resume, "certifications") ? (
           <>
-            <Text style={s.sectionTitle}>Certifications</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Certifications</Text>
             {resume.certifications.map((c, i) => (
               <Text key={i} style={s.bullet}>
                 {c.name}
@@ -447,9 +459,9 @@ function MinimalResumeDocument({ resume }: { resume: TailoredResume }) {
           </>
         ) : null}
 
-        {resume.interests ? (
+        {resume.interests && !isHidden(resume, "extras") ? (
           <>
-            <Text style={s.sectionTitle}>Interests</Text>
+            <Text style={[s.sectionTitle, accentStyle]}>Interests</Text>
             <Text style={s.summary}>{resume.interests}</Text>
           </>
         ) : null}

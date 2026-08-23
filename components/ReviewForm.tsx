@@ -11,6 +11,8 @@ import {
   FolderGit2,
   Sparkles,
   RefreshCw,
+  Eye,
+  EyeOff,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,6 +72,15 @@ export function ReviewForm({
     const next = [...resume.certifications];
     next[i] = { ...next[i], ...patch };
     set("certifications", next);
+  }
+
+  // Optional sections a user can hide from the exported PDF/DOCX without
+  // deleting their content — still edited here, just excluded at render.
+  function toggleHiddenSection(key: string) {
+    const next = resume.hiddenSections.includes(key)
+      ? resume.hiddenSections.filter((k) => k !== key)
+      : [...resume.hiddenSections, key];
+    set("hiddenSections", next);
   }
 
   const emptyCount =
@@ -445,6 +456,8 @@ export function ReviewForm({
           <Section
             icon={FolderGit2}
             title="Projects"
+            hidden={resume.hiddenSections.includes("projects")}
+            onToggleHidden={() => toggleHiddenSection("projects")}
             onAdd={() =>
               set("projects", [...resume.projects, { name: "", bullets: [] }])
             }
@@ -501,7 +514,12 @@ export function ReviewForm({
 
           {/* Certifications */}
           {resume.certifications.length > 0 && (
-            <Section icon={Sparkles} title="Certifications">
+            <Section
+              icon={Sparkles}
+              title="Certifications"
+              hidden={resume.hiddenSections.includes("certifications")}
+              onToggleHidden={() => toggleHiddenSection("certifications")}
+            >
               <div className="flex flex-col gap-3">
                 {resume.certifications.map((c, i) => (
                   <div key={i} className="flex items-center gap-3">
@@ -526,7 +544,13 @@ export function ReviewForm({
           )}
 
           {/* Extras */}
-          <Section icon={Plus} title="Extras" hint="Not on LinkedIn — worth adding">
+          <Section
+            icon={Plus}
+            title="Extras"
+            hint="Not on LinkedIn — worth adding"
+            hidden={resume.hiddenSections.includes("extras")}
+            onToggleHidden={() => toggleHiddenSection("extras")}
+          >
             <div className="flex flex-col gap-4">
               <div>
                 <div className="mb-1 flex items-center gap-2">
@@ -581,6 +605,8 @@ function Section({
   onAdd,
   addLabel,
   hint,
+  hidden,
+  onToggleHidden,
 }: {
   icon: typeof Briefcase;
   title: string;
@@ -589,6 +615,8 @@ function Section({
   onAdd?: () => void;
   addLabel?: string;
   hint?: string;
+  hidden?: boolean;
+  onToggleHidden?: () => void;
 }) {
   return (
     <section>
@@ -601,15 +629,31 @@ function Section({
         </h3>
         {source && <SourceBadge source={source} />}
         {hint && <span className="text-xs text-muted-foreground">· {hint}</span>}
-        {onAdd && (
-          <button
-            onClick={onAdd}
-            className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand-muted/50"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {addLabel ?? "Add"}
-          </button>
+        {hidden && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Hidden from export
+          </span>
         )}
+        <div className="ml-auto flex items-center gap-1">
+          {onToggleHidden && (
+            <button
+              onClick={onToggleHidden}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {hidden ? "Show" : "Hide"}
+            </button>
+          )}
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand-muted/50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {addLabel ?? "Add"}
+            </button>
+          )}
+        </div>
       </div>
       {children}
     </section>

@@ -67,6 +67,8 @@ export const TailoredResumeSchema = z.object({
   interests: z.string().default(""),
   portfolioLink: z.string().default(""),
   missingForRole: z.array(z.string()).default([]),
+  hiddenSections: z.array(z.string()).default([]),
+  accentColor: z.string().optional(),
 });
 
 export const InterviewQuestionSchema = z.object({

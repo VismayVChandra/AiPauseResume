@@ -95,6 +95,13 @@ export interface TailoredResume {
   // AI transparency, per the safety rules: what the role seems to want that
   // isn't backed by anything in the source profile. Never silently invented.
   missingForRole: string[];
+  // Layout preferences — user-controlled, never set by the AI (guarded in
+  // ai-service.ts the same way templateId/interests/portfolioLink are).
+  // Keys are section ids: "projects" | "certifications" | "extras".
+  hiddenSections: string[];
+  // Hex color, only meaningful for templates that use an accent color
+  // (modern, minimal) — omitted/empty means "use that template's default".
+  accentColor?: string;
 }
 
 // Output of AIService.generateCoverLetter — plain paragraphs, no markup.
@@ -139,6 +146,7 @@ export const EMPTY_TAILORED_RESUME: TailoredResume = {
   interests: "",
   portfolioLink: "",
   missingForRole: [],
+  hiddenSections: [],
 };
 
 // A single predicted interview question, grounded in something specific on

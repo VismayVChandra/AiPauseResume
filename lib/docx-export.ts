@@ -63,7 +63,13 @@ function bullet(text: string) {
 // requires both exports come from one data source, not two renderers that
 // could drift apart.
 export async function buildResumeDocx(resume: TailoredResume): Promise<Buffer> {
-  const theme = THEMES[resume.templateId] || THEMES.classic;
+  const baseTheme = THEMES[resume.templateId] || THEMES.classic;
+  // Classic never picks up a custom accent — same "no color, max ATS" rule
+  // as the PDF template.
+  const theme: Theme =
+    resume.templateId !== "classic" && resume.accentColor
+      ? { ...baseTheme, accent: resume.accentColor.replace(/^#/, "").toUpperCase() }
+      : baseTheme;
   const contactParts = [
     resume.contact.location,
     resume.contact.email,
@@ -125,7 +131,7 @@ export async function buildResumeDocx(resume: TailoredResume): Promise<Buffer> {
     }
   }
 
-  if (resume.projects.length) {
+  if (resume.projects.length && !resume.hiddenSections.includes("projects")) {
     children.push(sectionHeading("Projects", theme));
     for (const p of resume.projects) {
       children.push(
@@ -171,7 +177,7 @@ export async function buildResumeDocx(resume: TailoredResume): Promise<Buffer> {
     children.push(new Paragraph({ text: resume.skills.join("  ·  ") }));
   }
 
-  if (resume.certifications.length) {
+  if (resume.certifications.length && !resume.hiddenSections.includes("certifications")) {
     children.push(sectionHeading("Certifications", theme));
     resume.certifications.forEach((c) =>
       children.push(
@@ -180,7 +186,7 @@ export async function buildResumeDocx(resume: TailoredResume): Promise<Buffer> {
     );
   }
 
-  if (resume.interests) {
+  if (resume.interests && !resume.hiddenSections.includes("extras")) {
     children.push(sectionHeading("Interests", theme));
     children.push(new Paragraph({ text: resume.interests }));
   }

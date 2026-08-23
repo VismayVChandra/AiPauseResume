@@ -1,11 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Download, FileText, FileType2, Check, RefreshCw, Repeat } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  FileText,
+  FileType2,
+  Check,
+  RefreshCw,
+  Repeat,
+  RotateCcw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoverLetterPanel } from "@/components/genforge/cover-letter-panel";
 import { CoverLetter, TailoredResume, TEMPLATE_OPTIONS } from "@/types/resume";
 import { cn } from "@/lib/utils";
+
+const ACCENT_PRESETS = [
+  { label: "Blue", value: "#2563eb" },
+  { label: "Teal", value: "#0d9488" },
+  { label: "Purple", value: "#7c3aed" },
+  { label: "Rose", value: "#e11d48" },
+  { label: "Amber", value: "#d97706" },
+  { label: "Green", value: "#16a34a" },
+  { label: "Slate", value: "#334155" },
+];
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -23,6 +42,7 @@ export function ExportStep({
   coverLetter,
   onCoverLetterChange,
   onChangeTemplate,
+  onChangeAccentColor,
   onBack,
   onTailorAnotherRole,
 }: {
@@ -30,6 +50,7 @@ export function ExportStep({
   coverLetter: CoverLetter | null;
   onCoverLetterChange: (letter: CoverLetter) => void;
   onChangeTemplate: (templateId: TailoredResume["templateId"]) => void;
+  onChangeAccentColor: (color: string | undefined) => void;
   onBack: () => void;
   onTailorAnotherRole?: () => void;
 }) {
@@ -67,16 +88,16 @@ export function ExportStep({
   }
 
   // Auto-generate on first arrival at this step, and again whenever the
-  // template changes — content edits (from the review step) don't
-  // auto-regenerate since that would mean a fetch per keystroke; there's a
-  // manual "Refresh preview" button for after template changes made here.
+  // template or accent color changes — content edits (from the review
+  // step) don't auto-regenerate since that would mean a fetch per
+  // keystroke; there's a manual "Refresh preview" button for those.
   useEffect(() => {
     generatePreview();
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resume.templateId]);
+  }, [resume.templateId, resume.accentColor]);
 
   async function handleDownloadPdf() {
     setDownloading("pdf");
@@ -175,6 +196,40 @@ export function ExportStep({
                 </button>
               ))}
             </div>
+
+            {resume.templateId !== "classic" && (
+              <div className="mt-4 border-t border-border pt-4">
+                <h4 className="text-xs font-medium text-foreground">Accent color</h4>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {ACCENT_PRESETS.map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => onChangeAccentColor(c.value)}
+                      aria-label={c.label}
+                      title={c.label}
+                      className={cn(
+                        "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110",
+                        resume.accentColor === c.value ? "border-foreground" : "border-transparent"
+                      )}
+                      style={{ backgroundColor: c.value }}
+                    />
+                  ))}
+                  <button
+                    onClick={() => onChangeAccentColor(undefined)}
+                    aria-label="Reset to default color"
+                    title="Reset to default"
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full border transition-colors",
+                      !resume.accentColor
+                        ? "border-foreground text-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5">
