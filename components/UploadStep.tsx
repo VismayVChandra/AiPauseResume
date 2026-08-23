@@ -84,7 +84,7 @@ export function UploadStep({
 
   return (
     <div className="mx-auto max-w-2xl py-12 sm:py-16">
-      <p className="font-mono text-xs uppercase tracking-widest text-brand">Step 3 of 5</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-brand">Step 3 of 7</p>
       <h2 className="mt-3 font-serif text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
         Bring in your profile
       </h2>

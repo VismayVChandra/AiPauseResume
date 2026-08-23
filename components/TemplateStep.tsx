@@ -57,7 +57,7 @@ export function TemplateStep({ onNext }: { onNext: (templateId: TemplateId) => v
 
   return (
     <div className="mx-auto max-w-3xl py-12 sm:py-16">
-      <p className="font-mono text-xs uppercase tracking-widest text-brand">Step 1 of 5</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-brand">Step 1 of 7</p>
       <h2 className="mt-3 font-serif text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
         Choose a resume template
       </h2>

@@ -7,10 +7,6 @@ import {
   ResumeScoreSchema,
 } from "@/lib/schemas";
 
-// Google's current lightweight Gemini 3.x model is `gemini-3.1-flash-lite`.
-// There is no official Google-hosted "gemini-3.5-flash-lite" as of this
-// writing (only via third-party routers) — swap this string if that
-// changes or if you specifically have preview access to something else.
 const MODEL = "gemini-3.5-flash-lite";
 
 function getClient(): GoogleGenAI {
