@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { KeywordMatchPanel } from "@/components/genforge/keyword-match-panel";
 import { cn } from "@/lib/utils";
 import { ResumeScore, TailoredResume } from "@/types/resume";
 
@@ -222,10 +223,12 @@ function ImprovementReveal({
 
 export function ScoreStep({
   resume,
+  resumeId,
   onResumeImproved,
   onNext,
 }: {
   resume: TailoredResume;
+  resumeId: string | null;
   onResumeImproved: (next: TailoredResume) => void;
   onNext: () => void;
 }) {
@@ -278,6 +281,19 @@ export function ScoreStep({
     setFetchingImprovement(true);
     setError(null);
     try {
+      // Snapshot the current state before it gets rewritten, so this pass
+      // is revertible from the review screen's version history if the
+      // rewrite doesn't actually land better.
+      if (resumeId) {
+        fetch(`/api/resumes/${resumeId}/versions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resume, label: "Before AI improvement" }),
+        }).catch(() => {
+          // best-effort — a failed snapshot shouldn't block the improvement itself
+        });
+      }
+
       const res = await fetch("/api/improve-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -492,6 +508,10 @@ export function ScoreStep({
               </ul>
             </div>
           )}
+
+          <div className="mt-6">
+            <KeywordMatchPanel resume={resume} onAddSkill={addMissingKeyword} />
+          </div>
         </div>
       )}
 

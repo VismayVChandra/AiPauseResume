@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowRight,
   Plus,
@@ -9,11 +10,13 @@ import {
   Wrench,
   FolderGit2,
   Sparkles,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineText, InlineTextarea } from "@/components/genforge/inline-field";
 import { SourceBadge, type FieldSource } from "@/components/genforge/source-badge";
+import { VersionHistory } from "@/components/genforge/version-history";
 import { cn } from "@/lib/utils";
 import {
   TailoredResume,
@@ -30,11 +33,13 @@ function srcOf(value: string, kind: Exclude<FieldSource, "empty">): FieldSource 
 
 export function ReviewForm({
   resume,
+  resumeId,
   onChange,
   onNext,
   saveStatus,
 }: {
   resume: TailoredResume;
+  resumeId: string | null;
   onChange: (resume: TailoredResume) => void;
   onNext: () => void;
   saveStatus: "idle" | "saving" | "saved";
@@ -82,9 +87,12 @@ export function ReviewForm({
         <h2 className="font-serif text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
           Review &amp; make it yours
         </h2>
-        <span className="mt-2 shrink-0 text-xs text-muted-foreground">
-          {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : ""}
-        </span>
+        <div className="mt-1 flex shrink-0 items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : ""}
+          </span>
+          <VersionHistory resumeId={resumeId} onRestore={onChange} />
+        </div>
       </div>
       <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground">
         Everything below is editable — just click a field. We&apos;ve marked where each piece
@@ -279,6 +287,18 @@ export function ReviewForm({
                           }}
                           placeholder="Describe an accomplishment…"
                           className="text-sm"
+                        />
+                        <BulletRegenerate
+                          bullet={b}
+                          targetRole={resume.targetRole}
+                          company={exp.company}
+                          title={exp.title}
+                          otherBullets={exp.bullets}
+                          onSelect={(v) => {
+                            const bullets = [...exp.bullets];
+                            bullets[bi] = v;
+                            updateExperience(i, { bullets });
+                          }}
                         />
                         {exp.bullets.length > 1 && (
                           <RemoveButton
@@ -601,6 +621,100 @@ function EmptyRow({ text }: { text: string }) {
     <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
       {text}
     </p>
+  );
+}
+
+// Per-bullet ✨ regenerate — a lighter-touch alternative to "Improve My
+// Score" on the score screen: rewrites one line at a time, offering 3
+// variants, instead of rewriting the whole resume in one pass.
+function BulletRegenerate({
+  bullet,
+  targetRole,
+  company,
+  title,
+  otherBullets,
+  onSelect,
+}: {
+  bullet: string;
+  targetRole: string;
+  company: string;
+  title: string;
+  otherBullets: string[];
+  onSelect: (text: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [variants, setVariants] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    if (!bullet.trim()) return;
+    setOpen(true);
+    setLoading(true);
+    setError(null);
+    setVariants(null);
+    try {
+      const res = await fetch("/api/regenerate-bullet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bullet, targetRole, company, title, otherBullets }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't rewrite this bullet.");
+      setVariants(json.variants);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't rewrite this bullet.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="relative mt-1 shrink-0">
+      <button
+        onClick={run}
+        disabled={!bullet.trim()}
+        aria-label="Rewrite this bullet with AI"
+        className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-brand-muted/50 hover:text-brand focus-visible:opacity-100 group-hover:opacity-100 disabled:pointer-events-none"
+      >
+        <Sparkles className="h-3 w-3" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-6 z-20 w-72 rounded-lg border border-border bg-card p-2 shadow-lg">
+          {loading && (
+            <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              Rewriting…
+            </div>
+          )}
+          {error && <p className="px-2 py-1 text-xs text-destructive">{error}</p>}
+          {variants && (
+            <ul className="flex flex-col gap-1">
+              {variants.map((v, i) => (
+                <li key={i}>
+                  <button
+                    onClick={() => {
+                      onSelect(v);
+                      setOpen(false);
+                    }}
+                    className="w-full rounded-md px-2 py-1.5 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-brand-muted/40"
+                  >
+                    {v}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            onClick={() => setOpen(false)}
+            className="mt-1 w-full rounded-md px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

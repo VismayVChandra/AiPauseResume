@@ -16,7 +16,7 @@ import { ExportStep } from "@/components/ExportStep";
 import { MyResumesView, SavedResumeSummary } from "@/components/genforge/my-resumes";
 import { SaveAccountPrompt } from "@/components/genforge/save-account-prompt";
 import { HeaderAuth } from "@/components/genforge/header-auth";
-import { RawProfile, TailoredResume, TemplateId } from "@/types/resume";
+import { RawProfile, TailoredResume, TemplateId, CoverLetter } from "@/types/resume";
 import { getOrCreateSessionId, supabaseBrowser, getAccessToken, signOut } from "@/lib/supabase";
 
 type Stage = "landing" | "flow" | "dashboard";
@@ -49,9 +49,15 @@ export default function Home() {
   const [careerProfileId, setCareerProfileId] = useState<string | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [resume, setResume] = useState<TailoredResume | null>(null);
+  const [coverLetter, setCoverLetter] = useState<CoverLetter | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // True while the target-role step is being used to re-tailor an
+  // *existing* career profile for a new role, rather than as step 2 of the
+  // normal upload-a-fresh-profile flow. Set by "Tailor for another role".
+  const [isRetailoring, setIsRetailoring] = useState(false);
 
   // Optional auth — entirely separate from the resume-building flow above.
   // A person can go through the whole app and download without ever
@@ -165,6 +171,53 @@ export default function Home() {
     await runExtractionAndTailoring({ formData: form });
   }
 
+  // Re-tailors an *existing* career profile (already on file) for a new
+  // target role, skipping the upload/extraction step entirely — the whole
+  // reason career_profiles and resumes are separate tables.
+  async function runRetailor(role: string) {
+    if (!careerProfileId) {
+      setError("Missing profile — please import your profile again.");
+      setStep("upload");
+      return;
+    }
+    setStep("extracting");
+    setReady(false);
+    setError(null);
+    setCoverLetter(null);
+    try {
+      const tailorRes = await fetch("/api/tailor-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ careerProfileId, targetRole: role, templateId, sessionId }),
+      });
+      const tailorJson = await tailorRes.json();
+      if (!tailorRes.ok) throw new Error(tailorJson.error || "Tailoring failed.");
+
+      setResumeId(tailorJson.resumeId);
+      setResume(tailorJson.resume);
+      setReady(true);
+      if (user) claimGuestResumes();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setStep("target-role");
+    }
+  }
+
+  // Jumps straight to the target-role step reusing an already-imported
+  // profile — used by "Tailor for another role" on the export screen and
+  // on each card in My Resumes.
+  function startRetailor(profileId: string, template?: TemplateId) {
+    setCareerProfileId(profileId);
+    setResumeId(null);
+    setResume(null);
+    setCoverLetter(null);
+    setError(null);
+    if (template) setTemplateId(template);
+    setIsRetailoring(true);
+    setStage("flow");
+    setStep("target-role");
+  }
+
   async function saveEdits(next: TailoredResume) {
     setResume(next);
     if (!resumeId) return;
@@ -181,6 +234,20 @@ export default function Home() {
     }
   }
 
+  async function saveCoverLetter(letter: CoverLetter) {
+    setCoverLetter(letter);
+    if (!resumeId || !resume) return;
+    try {
+      await fetch(`/api/resumes/${resumeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume, coverLetter: letter }),
+      });
+    } catch {
+      // best-effort — the letter still lives in local state either way
+    }
+  }
+
   async function openSavedResume(summary: SavedResumeSummary) {
     setError(null);
     try {
@@ -189,6 +256,7 @@ export default function Home() {
       if (!res.ok) throw new Error(json.error || "Couldn't open that resume.");
       setResumeId(json.resumeId);
       setResume(json.resume);
+      setCoverLetter(json.coverLetter ?? null);
       setCareerProfileId(summary.careerProfileId);
       setTemplateId(json.resume.templateId);
       setTargetRole(json.resume.targetRole);
@@ -203,9 +271,11 @@ export default function Home() {
     setCareerProfileId(null);
     setResumeId(null);
     setResume(null);
+    setCoverLetter(null);
     setTargetRole("");
     setTemplateId("classic");
     setError(null);
+    setIsRetailoring(false);
     setStage("flow");
     setStep("template");
   }
@@ -274,7 +344,13 @@ export default function Home() {
 
         {stage === "dashboard" && (
           <div className="mx-auto max-w-6xl px-6">
-            <MyResumesView onOpen={openSavedResume} onNew={startNewResume} />
+            <MyResumesView
+              onOpen={openSavedResume}
+              onNew={startNewResume}
+              onRetailor={(summary) =>
+                startRetailor(summary.careerProfileId, summary.templateId as TemplateId)
+              }
+            />
           </div>
         )}
 
@@ -297,9 +373,15 @@ export default function Home() {
 
             {step === "target-role" && (
               <TargetRoleStep
+                retailoring={isRetailoring}
                 onNext={(role) => {
                   setTargetRole(role);
-                  setStep("upload");
+                  if (isRetailoring) {
+                    setIsRetailoring(false);
+                    runRetailor(role);
+                  } else {
+                    setStep("upload");
+                  }
                 }}
               />
             )}
@@ -331,6 +413,7 @@ export default function Home() {
             {step === "review" && resume && (
               <ReviewForm
                 resume={resume}
+                resumeId={resumeId}
                 onChange={saveEdits}
                 onNext={() => setStep("score")}
                 saveStatus={saveStatus}
@@ -340,6 +423,7 @@ export default function Home() {
             {step === "score" && resume && (
               <ScoreStep
                 resume={resume}
+                resumeId={resumeId}
                 onResumeImproved={(next) => saveEdits(next)}
                 onNext={() => setStep("interview")}
               />
@@ -362,8 +446,15 @@ export default function Home() {
                 )}
                 <ExportStep
                   resume={resume}
+                  coverLetter={coverLetter}
+                  onCoverLetterChange={saveCoverLetter}
                   onChangeTemplate={(id) => saveEdits({ ...resume, templateId: id })}
                   onBack={() => setStep("interview")}
+                  onTailorAnotherRole={
+                    careerProfileId
+                      ? () => startRetailor(careerProfileId, resume.templateId)
+                      : undefined
+                  }
                 />
               </>
             )}

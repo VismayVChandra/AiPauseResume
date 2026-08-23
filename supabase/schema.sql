@@ -24,8 +24,22 @@ create table if not exists resumes (
   user_id uuid references auth.users(id),   -- set only once the person signs in and claims their guest resumes
   target_role text not null,                 -- what the user typed in step 1
   resume_json jsonb not null,                -- structured tailored resume (see types/resume.ts: TailoredResume)
+  cover_letter_json jsonb,                   -- optional generated cover letter (see types/resume.ts: CoverLetter)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+-- Snapshots of resume_json taken at meaningful checkpoints (initial tailor,
+-- right before an "Improve My Score" rewrite is applied) so a user can see
+-- what changed and revert to an earlier version if a rewrite made things
+-- worse rather than better. Deliberately not snapshotting every autosave
+-- edit — that would be one row per keystroke pause, not a useful history.
+create table if not exists resume_versions (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid not null references resumes(id) on delete cascade,
+  label text not null,                       -- e.g. 'Initial tailor', 'Before AI improvement'
+  resume_json jsonb not null,
+  created_at timestamptz not null default now()
 );
 
 create index if not exists idx_career_profiles_session on career_profiles(session_id);
@@ -33,6 +47,7 @@ create index if not exists idx_career_profiles_user on career_profiles(user_id);
 create index if not exists idx_resumes_profile on resumes(career_profile_id);
 create index if not exists idx_resumes_session on resumes(session_id);
 create index if not exists idx_resumes_user on resumes(user_id);
+create index if not exists idx_resume_versions_resume on resume_versions(resume_id, created_at);
 
 -- Auth is OPTIONAL by design — guests can build and download a resume with
 -- no account at all. Signing in is offered (never forced) as a way to save
@@ -45,11 +60,15 @@ create index if not exists idx_resumes_user on resumes(user_id);
 -- browser with the anon key instead of through the API routes.
 alter table career_profiles enable row level security;
 alter table resumes enable row level security;
+alter table resume_versions enable row level security;
 
 create policy "demo_mode_all_access_profiles" on career_profiles
   for all using (true) with check (true);
 
 create policy "demo_mode_all_access_resumes" on resumes
+  for all using (true) with check (true);
+
+create policy "demo_mode_all_access_resume_versions" on resume_versions
   for all using (true) with check (true);
 
 -- Migrating an existing deployment? Run just this block against your
@@ -59,9 +78,21 @@ create policy "demo_mode_all_access_resumes" on resumes
 -- alter table career_profiles add column if not exists user_id uuid references auth.users(id);
 -- alter table resumes add column if not exists user_id uuid references auth.users(id);
 -- alter table resumes add column if not exists session_id text;
+-- alter table resumes add column if not exists cover_letter_json jsonb;
 -- update resumes r set session_id = cp.session_id
 --   from career_profiles cp where cp.id = r.career_profile_id and r.session_id is null;
 -- alter table resumes alter column session_id set not null;
+-- create table if not exists resume_versions (
+--   id uuid primary key default uuid_generate_v4(),
+--   resume_id uuid not null references resumes(id) on delete cascade,
+--   label text not null,
+--   resume_json jsonb not null,
+--   created_at timestamptz not null default now()
+-- );
+-- alter table resume_versions enable row level security;
+-- create policy "demo_mode_all_access_resume_versions" on resume_versions
+--   for all using (true) with check (true);
 -- create index if not exists idx_career_profiles_user on career_profiles(user_id);
 -- create index if not exists idx_resumes_session on resumes(session_id);
 -- create index if not exists idx_resumes_user on resumes(user_id);
+-- create index if not exists idx_resume_versions_resume on resume_versions(resume_id, created_at);

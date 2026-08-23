@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Download, FileText, FileType2, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, FileText, FileType2, Check, RefreshCw, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TailoredResume, TEMPLATE_OPTIONS } from "@/types/resume";
+import { CoverLetterPanel } from "@/components/genforge/cover-letter-panel";
+import { CoverLetter, TailoredResume, TEMPLATE_OPTIONS } from "@/types/resume";
 import { cn } from "@/lib/utils";
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -19,12 +20,18 @@ function downloadBlob(blob: Blob, filename: string) {
 
 export function ExportStep({
   resume,
+  coverLetter,
+  onCoverLetterChange,
   onChangeTemplate,
   onBack,
+  onTailorAnotherRole,
 }: {
   resume: TailoredResume;
+  coverLetter: CoverLetter | null;
+  onCoverLetterChange: (letter: CoverLetter) => void;
   onChangeTemplate: (templateId: TailoredResume["templateId"]) => void;
   onBack: () => void;
+  onTailorAnotherRole?: () => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -228,6 +235,22 @@ export function ExportStep({
               </p>
             )}
           </div>
+
+          <CoverLetterPanel
+            resume={resume}
+            coverLetter={coverLetter}
+            onChange={onCoverLetterChange}
+          />
+
+          {onTailorAnotherRole && (
+            <button
+              onClick={onTailorAnotherRole}
+              className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand"
+            >
+              <Repeat className="h-4 w-4 shrink-0" />
+              Tailor this profile for another role
+            </button>
+          )}
 
           <Button variant="ghost" onClick={onBack} className="gap-2 self-start text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />

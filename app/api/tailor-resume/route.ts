@@ -52,6 +52,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to save tailored resume." }, { status: 500 });
     }
 
+    // Seed version history with the starting point. Best-effort — a failed
+    // snapshot shouldn't block the user from getting their resume.
+    const { error: versionError } = await supabase.from("resume_versions").insert({
+      resume_id: resumeRow.id,
+      label: "Initial tailor",
+      resume_json: tailored,
+    });
+    if (versionError) {
+      console.error("Failed to seed initial version:", versionError);
+    }
+
     return NextResponse.json({ resumeId: resumeRow.id, resume: tailored });
   } catch (err) {
     console.error("tailor-resume error:", err);

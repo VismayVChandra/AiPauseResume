@@ -94,3 +94,13 @@ export const ResumeScoreSchema = z.object({
   areasToImprove: z.array(z.string()).default([]),
   suggestions: z.array(z.string()).default([]),
 });
+
+export const CoverLetterSchema = z.object({
+  greeting: z.string(),
+  paragraphs: z.array(z.string()).min(1),
+  signOff: z.string(),
+});
+
+export const BulletVariantsSchema = z.object({
+  variants: z.array(z.string()).min(1).max(4),
+});

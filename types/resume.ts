@@ -97,6 +97,33 @@ export interface TailoredResume {
   missingForRole: string[];
 }
 
+// Output of AIService.generateCoverLetter — plain paragraphs, no markup.
+// Same anti-fabrication rule as tailoring: grounded only in the resume
+// it's generated from.
+export interface CoverLetter {
+  greeting: string; // e.g. "Dear Hiring Manager,"
+  paragraphs: string[];
+  signOff: string; // e.g. "Sincerely,"
+}
+
+// A saved snapshot of a resume, taken at a meaningful checkpoint (initial
+// tailoring, before an AI improvement is applied) so a user can see what
+// changed and revert if a rewrite made things worse, not just better.
+export interface ResumeVersion {
+  id: string;
+  label: string;
+  resume: TailoredResume;
+  createdAt: string;
+}
+
+// Deterministic (non-AI) comparison between a resume and a pasted job
+// description — literal term overlap, not a model's judgment call.
+export interface KeywordMatchResult {
+  coveragePct: number;
+  covered: string[];
+  missing: string[];
+}
+
 export const EMPTY_TAILORED_RESUME: TailoredResume = {
   targetRole: "",
   templateId: "classic",

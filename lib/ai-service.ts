@@ -1,10 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
-import { RawProfile, TailoredResume, InterviewQuestion, ResumeScore } from "@/types/resume";
+import { RawProfile, TailoredResume, InterviewQuestion, ResumeScore, CoverLetter } from "@/types/resume";
 import {
   RawProfileSchema,
   TailoredResumeSchema,
   InterviewQuestionsSchema,
   ResumeScoreSchema,
+  CoverLetterSchema,
+  BulletVariantsSchema,
 } from "@/lib/schemas";
 
 const MODEL = "gemini-3.5-flash-lite";
@@ -166,6 +168,38 @@ JSON schema:
   ]
 }`;
 
+const COVER_LETTER_SYSTEM_PROMPT = `You write a short, specific cover letter for a target role, using only facts already present in the given tailored resume.
+
+Rules (must follow exactly):
+- Output ONLY valid JSON matching the schema below. No preamble, no markdown fences, no commentary.
+- You may ONLY reference companies, titles, projects, skills, and accomplishments that are already in the source resume. Never invent an employer, metric, or accomplishment.
+- Do not restate the resume line-by-line — select the 2-3 most relevant pieces of experience for this specific target role and connect them to what the role likely needs.
+- Write 3 short paragraphs total: (1) why this role at this company/type of role, grounded in specifics from the resume, (2) the strongest relevant experience/accomplishment, made concrete, (3) a brief close. No filler like "I am writing to express my interest" — open with something specific instead.
+- Tone: confident, direct, first person. No generic corporate language ("team player", "results-driven professional", "synergy").
+- If the target role names a specific company, address the letter generically ("Dear Hiring Manager,") since we don't know the actual hiring manager's name — never invent a person's name.
+- Keep total length to roughly 200-280 words across the paragraphs.
+
+JSON schema:
+{
+  "greeting": string (e.g. "Dear Hiring Manager,"),
+  "paragraphs": string[] (exactly 3 paragraphs, no line breaks within a paragraph),
+  "signOff": string (e.g. "Sincerely,")
+}`;
+
+const REGENERATE_BULLET_SYSTEM_PROMPT = `You rewrite a single resume bullet point in a few different ways, using only facts already present in the bullet and its surrounding context.
+
+Rules (must follow exactly):
+- Output ONLY valid JSON matching the schema below. No preamble, no markdown fences, no commentary.
+- You may ONLY use facts already stated in the original bullet or the surrounding role/company/target-role context given to you. Never add a tool, metric, scope, or outcome that isn't already there.
+- Each variant must be a genuinely different angle (e.g. lead with the outcome vs. lead with the action vs. tighter/shorter) — not near-duplicate phrasing.
+- Every variant: start with a strong verb, cut filler ("responsible for", "helped with", "worked on"), keep it to one sentence.
+- Produce exactly 3 variants.
+
+JSON schema:
+{
+  "variants": string[] (exactly 3 rewritten versions of the bullet)
+}`;
+
 export const AIService = {
   /**
    * Step 3: raw, un-tailored extraction from uploaded/pasted text.
@@ -297,5 +331,63 @@ export const AIService = {
       );
     }
     return parsed.data.questions;
+  },
+
+  /**
+   * Generates a short, specific cover letter from a finished tailored
+   * resume. Same anti-fabrication constraint as everywhere else — grounded
+   * only in what's already on the resume.
+   */
+  async generateCoverLetter(resume: TailoredResume): Promise<CoverLetter> {
+    const raw = await callStrictJson(
+      COVER_LETTER_SYSTEM_PROMPT,
+      `Target role:\n${resume.targetRole}\n\nTailored resume (JSON, factual ground truth — do not exceed it):\n${JSON.stringify(
+        resume,
+        null,
+        2
+      )}`
+    );
+    const parsed = CoverLetterSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(
+        `AI cover letter generation did not match the expected schema: ${parsed.error.message}`
+      );
+    }
+    return parsed.data;
+  },
+
+  /**
+   * Rewrites a single bullet a few different ways, using only what's
+   * already stated in that bullet and its surrounding role context. Used
+   * by the review screen's per-bullet regenerate button, as a lighter-touch
+   * alternative to a whole-resume "Improve My Score" pass.
+   */
+  async regenerateBullet(params: {
+    bullet: string;
+    targetRole: string;
+    company?: string;
+    title?: string;
+    otherBullets: string[];
+  }): Promise<string[]> {
+    const { bullet, targetRole, company, title, otherBullets } = params;
+    if (!bullet || !bullet.trim()) {
+      throw new Error("Bullet text is required to regenerate it.");
+    }
+    const raw = await callStrictJson(
+      REGENERATE_BULLET_SYSTEM_PROMPT,
+      `Target role:\n${targetRole}\n\nRole context: ${title || "(untitled role)"} at ${
+        company || "(unnamed company)"
+      }\n\nOther bullets already on this role (for context only, do not rewrite these):\n${otherBullets
+        .filter((b) => b.trim() && b.trim() !== bullet.trim())
+        .map((b) => `- ${b}`)
+        .join("\n")}\n\nBullet to rewrite:\n${bullet}`
+    );
+    const parsed = BulletVariantsSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(
+        `AI bullet regeneration did not match the expected schema: ${parsed.error.message}`
+      );
+    }
+    return parsed.data.variants;
   },
 };

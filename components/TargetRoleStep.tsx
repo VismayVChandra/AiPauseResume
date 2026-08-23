@@ -11,19 +11,28 @@ const SUGGESTIONS = [
   "Software Engineer I",
 ];
 
-export function TargetRoleStep({ onNext }: { onNext: (targetRole: string) => void }) {
+export function TargetRoleStep({
+  onNext,
+  retailoring,
+}: {
+  onNext: (targetRole: string) => void;
+  retailoring?: boolean;
+}) {
   const [value, setValue] = useState("");
   const canContinue = value.trim().length > 2;
 
   return (
     <div className="mx-auto max-w-2xl py-12 sm:py-16">
-      <p className="font-mono text-xs uppercase tracking-widest text-brand">Step 2 of 7</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-brand">
+        {retailoring ? "New target role" : "Step 2 of 7"}
+      </p>
       <h2 className="mt-3 font-serif text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
-        What job are you aiming for?
+        {retailoring ? "Tailor your profile for a new role" : "What job are you aiming for?"}
       </h2>
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-        Paste a title, a full job description, or a few lines about the role. The more you share,
-        the more precisely we can tailor your resume.
+        {retailoring
+          ? "Using the profile you already imported — no need to upload it again. Paste a title or job description for the new role."
+          : "Paste a title, a full job description, or a few lines about the role. The more you share, the more precisely we can tailor your resume."}
       </p>
 
       <div className="mt-8">

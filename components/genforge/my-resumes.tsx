@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Plus, FileText, Loader2 } from "lucide-react";
+import { ArrowRight, Plus, FileText, Loader2, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAccessToken } from "@/lib/supabase";
 
@@ -17,9 +17,11 @@ export interface SavedResumeSummary {
 export function MyResumesView({
   onOpen,
   onNew,
+  onRetailor,
 }: {
   onOpen: (summary: SavedResumeSummary) => void;
   onNew: () => void;
+  onRetailor?: (summary: SavedResumeSummary) => void;
 }) {
   const [resumes, setResumes] = useState<SavedResumeSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,13 +90,13 @@ export function MyResumesView({
       {resumes && resumes.length > 0 && (
         <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {resumes.map((r) => (
-            <li key={r.resumeId}>
-              <button
-                onClick={() => onOpen(r)}
-                className="flex w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-brand/40 hover:shadow-sm"
-              >
+            <li
+              key={r.resumeId}
+              className="flex flex-col items-start gap-1 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-brand/40 hover:shadow-sm"
+            >
+              <button onClick={() => onOpen(r)} className="w-full text-left">
                 <span className="text-sm font-medium text-foreground">{r.fullName}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="mt-0.5 block text-xs text-muted-foreground">
                   Targeting {r.targetRole || "—"}
                 </span>
                 <span className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -104,6 +106,15 @@ export function MyResumesView({
                   Updated {new Date(r.updatedAt).toLocaleDateString()}
                 </span>
               </button>
+              {onRetailor && (
+                <button
+                  onClick={() => onRetailor(r)}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand-muted/50"
+                >
+                  <Repeat className="h-3 w-3" />
+                  Tailor for another role
+                </button>
+              )}
             </li>
           ))}
         </ul>
