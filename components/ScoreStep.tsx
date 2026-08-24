@@ -244,7 +244,12 @@ export function ScoreStep({
 
   // Keywords the user has manually confirmed and added since the last score run.
   const [addedKeywords, setAddedKeywords] = useState<string[]>([]);
-  const dirty = addedKeywords.length > 0;
+  // Per-suggestion apply state: index of the one currently in flight, and
+  // the set already applied since the last score run (indices reset on
+  // rescore since a fresh score means a fresh suggestions list).
+  const [applyingSuggestion, setApplyingSuggestion] = useState<number | null>(null);
+  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<number>>(new Set());
+  const dirty = addedKeywords.length > 0 || appliedSuggestions.size > 0;
 
   async function runScore(target: TailoredResume = resume) {
     setLoading(true);
@@ -259,6 +264,7 @@ export function ScoreStep({
       if (!res.ok) throw new Error(json.error || "Couldn't score this resume.");
       setScore(json.score as ResumeScore);
       setAddedKeywords([]);
+      setAppliedSuggestions(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't score this resume.");
     } finally {
@@ -329,6 +335,31 @@ export function ScoreStep({
       missingKeywords: score.missingKeywords.filter((k) => k !== keyword),
     });
     setAddedKeywords((prev) => [...prev, keyword]);
+  }
+
+  // Applies one specific suggestion via a scoped AI edit — narrower than
+  // "Improve My Score", which rewrites against the whole feedback list at
+  // once. One request in flight at a time keeps concurrent edits from
+  // landing out of order against the same resume.
+  async function applySuggestion(index: number) {
+    if (!score || applyingSuggestion !== null || appliedSuggestions.has(index)) return;
+    setApplyingSuggestion(index);
+    setError(null);
+    try {
+      const res = await fetch("/api/apply-suggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume, suggestion: score.suggestions[index] }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't apply that suggestion.");
+      onResumeImproved(json.resume as TailoredResume);
+      setAppliedSuggestions((prev) => new Set(prev).add(index));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't apply that suggestion.");
+    } finally {
+      setApplyingSuggestion(null);
+    }
   }
 
   return (
@@ -402,8 +433,17 @@ export function ScoreStep({
           {dirty && (
             <div className="mt-4 flex items-center justify-between rounded-lg border border-brand/25 bg-brand-muted/25 px-4 py-2.5 text-xs text-brand">
               <span>
-                You added {addedKeywords.length} skill{addedKeywords.length > 1 ? "s" : ""} —
-                rescore to see the impact.
+                {[
+                  addedKeywords.length > 0
+                    ? `${addedKeywords.length} skill${addedKeywords.length > 1 ? "s" : ""} added`
+                    : null,
+                  appliedSuggestions.size > 0
+                    ? `${appliedSuggestions.size} suggestion${appliedSuggestions.size > 1 ? "s" : ""} applied`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}{" "}
+                — rescore to see the impact.
               </span>
               <button
                 onClick={() => runScore()}
@@ -438,14 +478,17 @@ export function ScoreStep({
             />
           </div>
 
-          {/* missing keywords — now actionable */}
-          {score.missingKeywords.length > 0 && (
-            <div className="mt-6 rounded-xl border border-border bg-card p-5">
-              <h3 className="text-sm font-medium text-foreground">Missing keywords</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Terms {resume.targetRole || "this role"} likely expects that aren&apos;t on the
-                resume yet. If one actually applies to you, add it directly.
-              </p>
+          {/* missing keywords — now actionable. Always shown once scored,
+              same as every other panel here — an empty AI-judged gap list
+              is itself a signal, not a reason to hide the section. */}
+          <div className="mt-6 rounded-xl border border-border bg-card p-5">
+            <h3 className="text-sm font-medium text-foreground">Missing keywords</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Terms {resume.targetRole || "this role"} likely expects that aren&apos;t on the
+              resume yet, per the AI&apos;s read of the role. If one actually applies to you, add
+              it directly.
+            </p>
+            {score.missingKeywords.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {score.missingKeywords.map((k, i) => (
                   <button
@@ -458,8 +501,13 @@ export function ScoreStep({
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-brand">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                No obvious gaps found for this role.
+              </p>
+            )}
+          </div>
 
           {/* strengths / areas to improve */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -498,13 +546,57 @@ export function ScoreStep({
                 <Sparkles className="h-4 w-4 text-brand" />
                 Specific suggestions to raise the score
               </h3>
-              <ul className="mt-3 flex flex-col gap-2.5">
-                {score.suggestions.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-foreground/85">
-                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
-                    <span>{s}</span>
-                  </li>
-                ))}
+              <ul className="mt-3 flex flex-col gap-2">
+                {score.suggestions.map((s, i) => {
+                  const applied = appliedSuggestions.has(i);
+                  const applying = applyingSuggestion === i;
+                  return (
+                    <li
+                      key={i}
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-xs leading-relaxed transition-colors",
+                        applied ? "text-muted-foreground" : "text-foreground/85 hover:border-brand/15 hover:bg-card/60"
+                      )}
+                    >
+                      <Lightbulb
+                        className={cn(
+                          "mt-0.5 h-3.5 w-3.5 shrink-0",
+                          applied ? "text-muted-foreground" : "text-brand"
+                        )}
+                      />
+                      <span className={cn("flex-1", applied && "line-through decoration-muted-foreground/50")}>
+                        {s}
+                      </span>
+                      <button
+                        onClick={() => applySuggestion(i)}
+                        disabled={applied || applyingSuggestion !== null}
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors disabled:pointer-events-none",
+                          applied
+                            ? "border-transparent text-brand"
+                            : "border-brand/30 bg-card text-brand hover:bg-brand-muted/40 disabled:opacity-50"
+                        )}
+                      >
+                        {applied ? (
+                          <>
+                            <Check className="h-3 w-3" />
+                            Applied
+                          </>
+                        ) : applying ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                            Applying…
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-3 w-3" />
+                            Apply
+                          </>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

@@ -813,16 +813,22 @@ function BulletRegenerate({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-6 z-20 w-72 rounded-lg border border-border bg-card p-2 shadow-lg">
+        <div className="absolute right-0 top-6 z-20 w-80 rounded-xl border border-border bg-card p-3 shadow-xl">
+          <div className="mb-2 flex items-center gap-1.5 px-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-brand" />
+            Pick a rewrite
+          </div>
+
           {loading && (
-            <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 px-1 py-3 text-xs text-muted-foreground">
               <RefreshCw className="h-3 w-3 animate-spin" />
               Rewriting…
             </div>
           )}
-          {error && <p className="px-2 py-1 text-xs text-destructive">{error}</p>}
+          {error && <p className="px-1 py-1 text-xs text-destructive">{error}</p>}
+
           {variants && (
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-2">
               {variants.map((v, i) => (
                 <li key={i}>
                   <button
@@ -830,20 +836,26 @@ function BulletRegenerate({
                       onSelect(v);
                       setOpen(false);
                     }}
-                    className="w-full rounded-md px-2 py-1.5 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-brand-muted/40"
+                    className="group flex w-full items-start gap-2.5 rounded-lg border border-border bg-background/60 p-2.5 text-left transition-all hover:-translate-y-px hover:border-brand/40 hover:bg-brand-muted/25 hover:shadow-sm"
                   >
-                    {v}
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground transition-colors group-hover:bg-brand group-hover:text-brand-foreground">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-xs leading-relaxed text-foreground">{v}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          <button
-            onClick={() => setOpen(false)}
-            className="mt-1 w-full rounded-md px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted"
-          >
-            Cancel
-          </button>
+
+          <div className="mt-2 border-t border-border pt-2">
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full rounded-md px-2 py-1 text-center text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

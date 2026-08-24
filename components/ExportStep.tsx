@@ -79,14 +79,14 @@ export function ExportStep({
   // so what the user sees here is exactly what they'll get. The page count
   // comes from the same response (an X-Resume-Pages header set by parsing
   // the rendered PDF server-side), not an estimate.
-  async function generatePreview() {
+  async function generatePreview(overrideResume?: TailoredResume) {
     setPreviewLoading(true);
     setPreviewError(null);
     try {
       const res = await fetch("/api/export-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume }),
+        body: JSON.stringify({ resume: overrideResume || resume }),
       });
       if (!res.ok) throw new Error("Couldn't generate a preview.");
       const pages = res.headers.get("X-Resume-Pages");
@@ -114,7 +114,13 @@ export function ExportStep({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't condense this resume.");
-      onCondensed(json.resume as TailoredResume);
+      const condensed = json.resume as TailoredResume;
+      onCondensed(condensed);
+      // Refresh the preview/page-count with the just-condensed data directly
+      // — the auto-refresh effect below only watches templateId/accentColor,
+      // and the `resume` prop here won't reflect this update until the
+      // parent re-renders, so passing it explicitly avoids a stale preview.
+      await generatePreview(condensed);
     } catch (e) {
       setCondenseError(e instanceof Error ? e.message : "Couldn't condense this resume.");
     } finally {
@@ -210,7 +216,7 @@ export function ExportStep({
             {!previewLoading && previewError && (
               <div className="flex h-[600px] flex-col items-center justify-center gap-3 text-sm text-destructive">
                 {previewError}
-                <Button variant="outline" size="sm" onClick={generatePreview}>
+                <Button variant="outline" size="sm" onClick={() => generatePreview()}>
                   <RefreshCw className="h-3.5 w-3.5" />
                   Try again
                 </Button>

@@ -213,6 +213,33 @@ JSON schema:
   "missingForRole": string[]
 }`;
 
+const APPLY_SUGGESTION_SYSTEM_PROMPT = `You apply exactly ONE specific, already-approved edit suggestion to a tailored resume, using only facts already present in the resume you're given.
+
+Rules (must follow exactly):
+- Output ONLY valid JSON matching the SAME schema as a tailored resume (see below). No preamble, no markdown fences, no commentary.
+- Make ONLY the change the suggestion describes. Leave every other field exactly as given — do not rewrite unrelated bullets, reorder sections, or otherwise "improve" anything beyond what this one suggestion asks for.
+- You may ONLY use facts already present in the resume you're given. Never invent or add a new skill, tool, employer, or accomplishment — including to satisfy the suggestion. If the suggestion asks for something not actually supported by the source data (e.g. a metric that doesn't exist), make the best faithful edit possible without fabricating (e.g. tighten the wording instead) rather than inventing the missing fact.
+- Keep "interests", "portfolioLink", and "templateId" exactly as given.
+- Recompute "missingForRole" only if this edit actually changes what's missing; otherwise leave it exactly as given.
+
+JSON schema:
+{
+  "targetRole": string,
+  "templateId": string,
+  "fullName": string,
+  "headline": string,
+  "contact": { "email"?: string, "phone"?: string, "location"?: string, "linkedin"?: string },
+  "summary": string,
+  "experience": [{ "company": string, "title": string, "startDate"?: string, "endDate"?: string, "location"?: string, "bullets": string[] }],
+  "education": [{ "institution": string, "degree": string, "field"?: string, "startDate"?: string, "endDate"?: string, "details"?: string }],
+  "projects": [{ "name": string, "description"?: string, "bullets": string[], "link"?: string }],
+  "skills": string[],
+  "certifications": [{ "name": string, "issuer"?: string, "date"?: string }],
+  "interests": string,
+  "portfolioLink": string,
+  "missingForRole": string[]
+}`;
+
 const INTERVIEW_QUESTIONS_SYSTEM_PROMPT = `You predict likely interview questions based on a tailored resume and target role.
 Rules:
 - Output ONLY valid JSON, no commentary.
@@ -393,6 +420,38 @@ export const AIService = {
     if (!parsed.success) {
       throw new Error(
         `AI condensing did not match the expected schema: ${parsed.error.message}`
+      );
+    }
+    return {
+      ...parsed.data,
+      templateId: resume.templateId,
+      interests: resume.interests,
+      portfolioLink: resume.portfolioLink,
+      hiddenSections: resume.hiddenSections,
+      accentColor: resume.accentColor,
+      photoDataUrl: resume.photoDataUrl,
+    };
+  },
+
+  /**
+   * Applies exactly one score-panel suggestion to the resume — a
+   * narrower, more predictable alternative to "Improve My Score" for a
+   * user who only wants that specific edit. Same anti-fabrication
+   * constraints as every other rewrite here.
+   */
+  async applySuggestion(resume: TailoredResume, suggestion: string): Promise<TailoredResume> {
+    const raw = await callStrictJson(
+      APPLY_SUGGESTION_SYSTEM_PROMPT,
+      `Target role:\n${resume.targetRole}\n\nSuggestion to apply:\n${suggestion}\n\nCurrent resume (JSON, factual ground truth — do not exceed it):\n${JSON.stringify(
+        resume,
+        null,
+        2
+      )}`
+    );
+    const parsed = TailoredResumeSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(
+        `AI suggestion-apply did not match the expected schema: ${parsed.error.message}`
       );
     }
     return {
