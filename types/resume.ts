@@ -34,7 +34,7 @@ export interface Certification {
 }
 
 // Available resume layouts, chosen up front on the template step.
-export type TemplateId = "classic" | "modern" | "minimal";
+export type TemplateId = "classic" | "modern" | "minimal" | "compact" | "executive";
 
 export const TEMPLATE_OPTIONS: { id: TemplateId; name: string; description: string }[] = [
   {
@@ -51,6 +51,16 @@ export const TEMPLATE_OPTIONS: { id: TemplateId; name: string; description: stri
     id: "minimal",
     name: "Minimal",
     description: "Light typography-first layout with generous whitespace.",
+  },
+  {
+    id: "compact",
+    name: "Compact",
+    description: "Dense two-column layout, no color — fits more onto one page.",
+  },
+  {
+    id: "executive",
+    name: "Executive",
+    description: "Bold accent header band, single column, a bit more polish.",
   },
 ];
 
@@ -100,8 +110,14 @@ export interface TailoredResume {
   // Keys are section ids: "projects" | "certifications" | "extras".
   hiddenSections: string[];
   // Hex color, only meaningful for templates that use an accent color
-  // (modern, minimal) — omitted/empty means "use that template's default".
+  // (modern, minimal, executive) — omitted/empty means "use that
+  // template's default".
   accentColor?: string;
+  // Optional headshot as a base64 data URI (png/jpeg only, size-capped
+  // client-side) — user-uploaded, never touched by the AI. Only rendered
+  // by templates with a photo slot (modern, executive); stored regardless
+  // of the active template so switching back doesn't lose it.
+  photoDataUrl?: string;
 }
 
 // Output of AIService.generateCoverLetter — plain paragraphs, no markup.

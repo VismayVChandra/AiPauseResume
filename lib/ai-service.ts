@@ -185,6 +185,34 @@ JSON schema:
   "missingForRole": string[]
 }`;
 
+const CONDENSE_SYSTEM_PROMPT = `You condense a tailored resume so its content fits comfortably on one page, using only facts already present in the resume you're given.
+
+Rules (must follow exactly):
+- Output ONLY valid JSON matching the SAME schema as a tailored resume (see below). No preamble, no markdown fences, no commentary.
+- You may ONLY use facts already present in the resume you're given. Never invent or add a new skill, tool, employer, or accomplishment.
+- To shorten: tighten wording (cut filler, merge near-duplicate bullets, prefer one sharp sentence over two), trim the summary to 1-2 sentences, and — only if still too long — drop the single least-relevant bullet within an entry or the single least-relevant project/certification for the target role. Never drop an entire work experience entry; a full employment history matters more than a project or cert.
+- Prefer trimming wording over deleting content — deletion is a last resort, and never delete more than necessary to plausibly fit one page.
+- Keep "interests" and "portfolioLink" exactly as given. Keep "templateId" exactly as given.
+- Recompute "missingForRole" to reflect the resume after condensing.
+
+JSON schema:
+{
+  "targetRole": string,
+  "templateId": string,
+  "fullName": string,
+  "headline": string,
+  "contact": { "email"?: string, "phone"?: string, "location"?: string, "linkedin"?: string },
+  "summary": string,
+  "experience": [{ "company": string, "title": string, "startDate"?: string, "endDate"?: string, "location"?: string, "bullets": string[] }],
+  "education": [{ "institution": string, "degree": string, "field"?: string, "startDate"?: string, "endDate"?: string, "details"?: string }],
+  "projects": [{ "name": string, "description"?: string, "bullets": string[], "link"?: string }],
+  "skills": string[],
+  "certifications": [{ "name": string, "issuer"?: string, "date"?: string }],
+  "interests": string,
+  "portfolioLink": string,
+  "missingForRole": string[]
+}`;
+
 const INTERVIEW_QUESTIONS_SYSTEM_PROMPT = `You predict likely interview questions based on a tailored resume and target role.
 Rules:
 - Output ONLY valid JSON, no commentary.
@@ -342,6 +370,39 @@ export const AIService = {
       portfolioLink: resume.portfolioLink,
       hiddenSections: resume.hiddenSections,
       accentColor: resume.accentColor,
+      photoDataUrl: resume.photoDataUrl,
+    };
+  },
+
+  /**
+   * "Condense to one page": shortens a resume's wording (and, only as a
+   * last resort, trims the least-relevant bullet/project/cert) to fit one
+   * page, using the same anti-fabrication constraints as improveResume —
+   * it can only cut or tighten what's already there, never add new facts.
+   */
+  async condenseResume(resume: TailoredResume): Promise<TailoredResume> {
+    const raw = await callStrictJson(
+      CONDENSE_SYSTEM_PROMPT,
+      `Target role:\n${resume.targetRole}\n\nCurrent resume (JSON, factual ground truth — do not exceed it):\n${JSON.stringify(
+        resume,
+        null,
+        2
+      )}`
+    );
+    const parsed = TailoredResumeSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(
+        `AI condensing did not match the expected schema: ${parsed.error.message}`
+      );
+    }
+    return {
+      ...parsed.data,
+      templateId: resume.templateId,
+      interests: resume.interests,
+      portfolioLink: resume.portfolioLink,
+      hiddenSections: resume.hiddenSections,
+      accentColor: resume.accentColor,
+      photoDataUrl: resume.photoDataUrl,
     };
   },
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowRight,
   Plus,
@@ -14,6 +14,8 @@ import {
   Eye,
   EyeOff,
   X,
+  Camera,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineText, InlineTextarea } from "@/components/genforge/inline-field";
@@ -156,49 +158,57 @@ export function ReviewForm({
       {/* the sheet */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-paper shadow-[0_20px_60px_-30px_oklch(0.24_0.012_255/0.3)]">
         <header className="border-b border-border/70 bg-card/40 px-6 py-6 sm:px-8">
-          <InlineText
-            ariaLabel="Full name"
-            value={resume.fullName}
-            onChange={(v) => set("fullName", v)}
-            placeholder="Your name"
-            className="font-serif text-2xl tracking-tight sm:text-3xl"
-          />
-          <InlineText
-            ariaLabel="Headline"
-            value={resume.headline}
-            onChange={(v) => set("headline", v)}
-            placeholder="A short headline (e.g. Frontend Engineer)"
-            className="mt-1 text-sm text-muted-foreground"
-          />
-          <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <InlineText
-              ariaLabel="Email"
-              value={resume.contact.email || ""}
-              onChange={(v) => set("contact", { ...resume.contact, email: v })}
-              placeholder="Email"
-              className="text-sm"
+          <div className="flex items-start gap-4">
+            <PhotoUpload
+              value={resume.photoDataUrl}
+              onChange={(v) => set("photoDataUrl", v)}
             />
-            <InlineText
-              ariaLabel="Phone"
-              value={resume.contact.phone || ""}
-              onChange={(v) => set("contact", { ...resume.contact, phone: v })}
-              placeholder="Phone (optional)"
-              className="text-sm"
-            />
-            <InlineText
-              ariaLabel="Location"
-              value={resume.contact.location || ""}
-              onChange={(v) => set("contact", { ...resume.contact, location: v })}
-              placeholder="Location"
-              className="text-sm"
-            />
-            <InlineText
-              ariaLabel="LinkedIn"
-              value={resume.contact.linkedin || ""}
-              onChange={(v) => set("contact", { ...resume.contact, linkedin: v })}
-              placeholder="LinkedIn URL"
-              className="text-sm"
-            />
+            <div className="min-w-0 flex-1">
+              <InlineText
+                ariaLabel="Full name"
+                value={resume.fullName}
+                onChange={(v) => set("fullName", v)}
+                placeholder="Your name"
+                className="font-serif text-2xl tracking-tight sm:text-3xl"
+              />
+              <InlineText
+                ariaLabel="Headline"
+                value={resume.headline}
+                onChange={(v) => set("headline", v)}
+                placeholder="A short headline (e.g. Frontend Engineer)"
+                className="mt-1 text-sm text-muted-foreground"
+              />
+              <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+                <InlineText
+                  ariaLabel="Email"
+                  value={resume.contact.email || ""}
+                  onChange={(v) => set("contact", { ...resume.contact, email: v })}
+                  placeholder="Email"
+                  className="text-sm"
+                />
+                <InlineText
+                  ariaLabel="Phone"
+                  value={resume.contact.phone || ""}
+                  onChange={(v) => set("contact", { ...resume.contact, phone: v })}
+                  placeholder="Phone (optional)"
+                  className="text-sm"
+                />
+                <InlineText
+                  ariaLabel="Location"
+                  value={resume.contact.location || ""}
+                  onChange={(v) => set("contact", { ...resume.contact, location: v })}
+                  placeholder="Location"
+                  className="text-sm"
+                />
+                <InlineText
+                  ariaLabel="LinkedIn"
+                  value={resume.contact.linkedin || ""}
+                  onChange={(v) => set("contact", { ...resume.contact, linkedin: v })}
+                  placeholder="LinkedIn URL"
+                  className="text-sm"
+                />
+              </div>
+            </div>
           </div>
         </header>
 
@@ -218,6 +228,7 @@ export function ReviewForm({
           <Section
             icon={Briefcase}
             title="Experience"
+            hint="**bold** and _italic_ work in bullets"
             onAdd={() =>
               set("experience", [
                 ...resume.experience,
@@ -665,6 +676,83 @@ function EmptyRow({ text }: { text: string }) {
     <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
       {text}
     </p>
+  );
+}
+
+const MAX_PHOTO_BYTES = 300 * 1024;
+
+// Optional headshot, stored as a base64 data URI directly on the resume —
+// no upload endpoint/storage bucket needed for something this small. Only
+// rendered by the Modern and Executive templates; kept regardless of which
+// template is active so switching back doesn't lose it.
+function PhotoUpload({
+  value,
+  onChange,
+}: {
+  value: string | undefined;
+  onChange: (v: string | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleFile(file: File) {
+    setError(null);
+    if (file.type !== "image/png" && file.type !== "image/jpeg") {
+      setError("PNG or JPEG only.");
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setError("Keep it under 300KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1.5">
+      <button
+        onClick={() => inputRef.current?.click()}
+        aria-label={value ? "Change photo" : "Add photo"}
+        className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:border-brand/40"
+      >
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <User className="h-6 w-6" strokeWidth={1.5} />
+        )}
+        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+          <Camera className="h-4 w-4 text-white" />
+        </span>
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+          e.target.value = "";
+        }}
+      />
+      {value && (
+        <button
+          onClick={() => onChange(undefined)}
+          className="text-[10px] text-muted-foreground hover:text-destructive"
+        >
+          Remove
+        </button>
+      )}
+      {!value && (
+        <span className="max-w-[64px] text-center text-[9px] leading-tight text-muted-foreground">
+          Modern/Executive only
+        </span>
+      )}
+      {error && <span className="max-w-[80px] text-center text-[9px] text-destructive">{error}</span>}
+    </div>
   );
 }
 

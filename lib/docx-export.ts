@@ -3,11 +3,13 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ImageRun,
   HeadingLevel,
   BorderStyle,
   AlignmentType,
 } from "docx";
 import { TailoredResume, TemplateId } from "@/types/resume";
+import { parseInlineMarkdown } from "@/lib/rich-text";
 
 function dateRange(start?: string, end?: string) {
   if (!start && !end) return "";
@@ -35,7 +37,20 @@ const THEMES: Record<TemplateId, Theme> = {
   classic: { nameColor: "111827", nameSize: 40, accent: "111827", headingBorder: true, headingUppercase: true },
   modern: { nameColor: "1D4ED8", nameSize: 42, accent: "2563EB", headingBorder: true, headingUppercase: true },
   minimal: { nameColor: "1F2937", nameSize: 36, accent: "9CA3AF", headingBorder: false, headingUppercase: true },
+  compact: { nameColor: "111827", nameSize: 34, accent: "111827", headingBorder: true, headingUppercase: true },
+  executive: { nameColor: "1E293B", nameSize: 40, accent: "1E293B", headingBorder: true, headingUppercase: true },
 };
+
+// DOCX has no reliable way to read an embedded image's pixel dimensions
+// without a decoder dependency, so photos render at a fixed square size —
+// close enough for a small headshot, and matches the PDF's fixed circle.
+const PHOTO_SIZE = 90;
+
+function decodePhoto(dataUrl: string): Buffer | null {
+  const match = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(dataUrl);
+  if (!match) return null;
+  return Buffer.from(match[2], "base64");
+}
 
 function sectionHeading(text: string, theme: Theme) {
   return new Paragraph({
@@ -55,8 +70,13 @@ function sectionHeading(text: string, theme: Theme) {
   });
 }
 
+// Turns **bold**/_italic_ markers into styled runs within the bullet
+// paragraph, same source-of-truth parser the PDF template uses.
 function bullet(text: string) {
-  return new Paragraph({ text, bullet: { level: 0 }, spacing: { after: 80 } });
+  const runs = parseInlineMarkdown(text).map(
+    (seg) => new TextRun({ text: seg.text, bold: seg.bold, italics: seg.italic })
+  );
+  return new Paragraph({ children: runs, bullet: { level: 0 }, spacing: { after: 80 } });
 }
 
 // Same underlying resume object that feeds the PDF template — the spec
@@ -78,11 +98,32 @@ export async function buildResumeDocx(resume: TailoredResume): Promise<Buffer> {
     resume.portfolioLink,
   ].filter(Boolean) as string[];
 
-  const children: Paragraph[] = [
+  const children: Paragraph[] = [];
+
+  // Photo only renders for the two templates with a photo slot in the PDF
+  // (modern, executive) — kept consistent between the two exports.
+  if (resume.photoDataUrl && (resume.templateId === "modern" || resume.templateId === "executive")) {
+    const photoBuffer = decodePhoto(resume.photoDataUrl);
+    if (photoBuffer) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 100 },
+          children: [
+            new ImageRun({
+              data: photoBuffer,
+              transformation: { width: PHOTO_SIZE, height: PHOTO_SIZE },
+            }),
+          ],
+        })
+      );
+    }
+  }
+
+  children.push(
     new Paragraph({
       children: [new TextRun({ text: resume.fullName, bold: true, size: theme.nameSize, color: theme.nameColor })],
-    }),
-  ];
+    })
+  );
 
   if (resume.headline) {
     children.push(

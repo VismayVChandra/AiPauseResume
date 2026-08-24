@@ -28,11 +28,29 @@ export async function POST(req: NextRequest) {
       >
     );
 
+    // Real page count, not a heuristic — parse the PDF we just rendered so
+    // the export screen can show "2 pages" and offer to condense to one.
+    // Deliberately not the upload step's pdf-parse here: its bundled pdf.js
+    // is a 2017 build that throws "bad XRef entry" on the cross-reference
+    // streams @react-pdf/renderer emits once a photo <Image> is embedded —
+    // pdf-lib is a maintained, general-purpose PDF library and doesn't
+    // choke on that. Best-effort either way: a parse failure shouldn't
+    // block the actual download.
+    let pageCount: number | null = null;
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+      const doc = await PDFDocument.load(buffer);
+      pageCount = doc.getPageCount();
+    } catch (err) {
+      console.error("export-pdf page-count error:", err);
+    }
+
     const fileName = `${parsed.data.fullName.replace(/\s+/g, "_") || "resume"}.pdf`;
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${fileName}"`,
+        ...(pageCount !== null ? { "X-Resume-Pages": String(pageCount) } : {}),
       },
     });
   } catch (err) {

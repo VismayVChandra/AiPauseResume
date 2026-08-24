@@ -51,6 +51,10 @@ export default function Home() {
   const [resume, setResume] = useState<TailoredResume | null>(null);
   const [coverLetter, setCoverLetter] = useState<CoverLetter | null>(null);
   const [ready, setReady] = useState(false);
+  // Real phase of the extract+tailor pipeline, driven by which network call
+  // is actually in flight — not a cosmetic timer pretending to show
+  // sub-steps within a single request.
+  const [extractPhase, setExtractPhase] = useState<"reading" | "tailoring">("reading");
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
@@ -101,6 +105,7 @@ export default function Home() {
   const runExtractionAndTailoring = useCallback(
     async (opts: { formData?: FormData; text?: string; manualProfile?: RawProfile; demo?: boolean }) => {
       setStep("extracting");
+      setExtractPhase("reading");
       setReady(false);
       setError(null);
       try {
@@ -136,6 +141,7 @@ export default function Home() {
         }
 
         setCareerProfileId(careerProfileIdLocal);
+        setExtractPhase("tailoring");
 
         const tailorRes = await fetch("/api/tailor-resume", {
           method: "POST",
@@ -181,6 +187,7 @@ export default function Home() {
       return;
     }
     setStep("extracting");
+    setExtractPhase("tailoring");
     setReady(false);
     setError(null);
     setCoverLetter(null);
@@ -405,6 +412,7 @@ export default function Home() {
             {step === "extracting" && (
               <ExtractionLoading
                 role={targetRole}
+                phase={extractPhase}
                 ready={ready}
                 onDone={() => setStep("review")}
               />
@@ -450,6 +458,7 @@ export default function Home() {
                   onCoverLetterChange={saveCoverLetter}
                   onChangeTemplate={(id) => saveEdits({ ...resume, templateId: id })}
                   onChangeAccentColor={(color) => saveEdits({ ...resume, accentColor: color })}
+                  onCondensed={saveEdits}
                   onBack={() => setStep("interview")}
                   onTailorAnotherRole={
                     careerProfileId

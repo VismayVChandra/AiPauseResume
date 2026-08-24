@@ -54,7 +54,7 @@ export const RawProfileSchema = z.object({
 
 export const TailoredResumeSchema = z.object({
   targetRole: z.string(),
-  templateId: z.enum(["classic", "modern", "minimal"]).default("classic"),
+  templateId: z.enum(["classic", "modern", "minimal", "compact", "executive"]).default("classic"),
   fullName: z.string(),
   headline: z.string(),
   contact: RawProfileSchema.shape.contact,
@@ -69,6 +69,10 @@ export const TailoredResumeSchema = z.object({
   missingForRole: z.array(z.string()).default([]),
   hiddenSections: z.array(z.string()).default([]),
   accentColor: z.string().optional(),
+  // Capped well above what a compressed 300KB source photo base64-encodes
+  // to, so a legitimate upload never trips this — just guards against an
+  // absurd payload.
+  photoDataUrl: z.string().max(500_000).optional(),
 });
 
 export const InterviewQuestionSchema = z.object({

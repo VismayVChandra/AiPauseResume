@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const { careerProfileId, targetRole, templateId, sessionId } = body as {
       careerProfileId: string;
       targetRole: string;
-      templateId?: "classic" | "modern" | "minimal";
+      templateId?: "classic" | "modern" | "minimal" | "compact" | "executive";
       sessionId: string;
     };
 

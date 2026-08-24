@@ -10,11 +10,18 @@ import {
   RefreshCw,
   Repeat,
   RotateCcw,
+  Scissors,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoverLetterPanel } from "@/components/genforge/cover-letter-panel";
 import { CoverLetter, TailoredResume, TEMPLATE_OPTIONS } from "@/types/resume";
 import { cn } from "@/lib/utils";
+
+// These two templates are deliberately colorless (max ATS compatibility) —
+// same rule the PDF/DOCX renderers apply when deciding whether to read
+// resume.accentColor at all.
+const NO_ACCENT_TEMPLATES = new Set(["classic", "compact"]);
 
 const ACCENT_PRESETS = [
   { label: "Blue", value: "#2563eb" },
@@ -43,6 +50,7 @@ export function ExportStep({
   onCoverLetterChange,
   onChangeTemplate,
   onChangeAccentColor,
+  onCondensed,
   onBack,
   onTailorAnotherRole,
 }: {
@@ -51,20 +59,26 @@ export function ExportStep({
   onCoverLetterChange: (letter: CoverLetter) => void;
   onChangeTemplate: (templateId: TailoredResume["templateId"]) => void;
   onChangeAccentColor: (color: string | undefined) => void;
+  onCondensed: (next: TailoredResume) => void;
   onBack: () => void;
   onTailorAnotherRole?: () => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState<number | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null);
   const [downloaded, setDownloaded] = useState<null | "pdf" | "docx">(null);
+  const [condensing, setCondensing] = useState(false);
+  const [condenseError, setCondenseError] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
   const base = (resume.fullName || "resume").trim().replace(/\s+/g, "_") || "resume";
 
   // This is the literal PDF that would download — not an approximation —
-  // so what the user sees here is exactly what they'll get.
+  // so what the user sees here is exactly what they'll get. The page count
+  // comes from the same response (an X-Resume-Pages header set by parsing
+  // the rendered PDF server-side), not an estimate.
   async function generatePreview() {
     setPreviewLoading(true);
     setPreviewError(null);
@@ -75,6 +89,8 @@ export function ExportStep({
         body: JSON.stringify({ resume }),
       });
       if (!res.ok) throw new Error("Couldn't generate a preview.");
+      const pages = res.headers.get("X-Resume-Pages");
+      setPageCount(pages ? Number(pages) : null);
       const blob = await res.blob();
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
       const url = URL.createObjectURL(blob);
@@ -84,6 +100,25 @@ export function ExportStep({
       setPreviewError(e instanceof Error ? e.message : "Couldn't generate a preview.");
     } finally {
       setPreviewLoading(false);
+    }
+  }
+
+  async function handleCondense() {
+    setCondensing(true);
+    setCondenseError(null);
+    try {
+      const res = await fetch("/api/condense-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't condense this resume.");
+      onCondensed(json.resume as TailoredResume);
+    } catch (e) {
+      setCondenseError(e instanceof Error ? e.message : "Couldn't condense this resume.");
+    } finally {
+      setCondensing(false);
     }
   }
 
@@ -151,6 +186,21 @@ export function ExportStep({
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
         {/* live preview of the real PDF */}
         <div className="order-2 lg:order-1">
+          {pageCount !== null && !previewLoading && (
+            <div className="mb-2 flex items-center justify-between">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                  pageCount > 1
+                    ? "bg-amber-50 text-amber-800"
+                    : "bg-brand-muted/50 text-brand"
+                )}
+              >
+                <Layers className="h-3 w-3" />
+                {pageCount} {pageCount === 1 ? "page" : "pages"}
+              </span>
+            </div>
+          )}
           <div className="overflow-hidden rounded-2xl border border-border bg-paper-edge/30 p-3 sm:p-4">
             {previewLoading && (
               <div className="flex h-[600px] items-center justify-center text-sm text-muted-foreground">
@@ -197,7 +247,7 @@ export function ExportStep({
               ))}
             </div>
 
-            {resume.templateId !== "classic" && (
+            {!NO_ACCENT_TEMPLATES.has(resume.templateId) && (
               <div className="mt-4 border-t border-border pt-4">
                 <h4 className="text-xs font-medium text-foreground">Accent color</h4>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -231,6 +281,29 @@ export function ExportStep({
               </div>
             )}
           </div>
+
+          {pageCount !== null && pageCount > 1 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <h3 className="flex items-center gap-1.5 text-sm font-medium text-amber-900">
+                <Scissors className="h-4 w-4" />
+                Runs to {pageCount} pages
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                Tighten wording and trim the least-relevant bullet or two to fit one page — never
+                adds anything, only shortens what&apos;s already there.
+              </p>
+              {condenseError && <p className="mt-2 text-xs text-destructive">{condenseError}</p>}
+              <Button
+                size="sm"
+                onClick={handleCondense}
+                disabled={condensing}
+                className="mt-3 w-full gap-1.5"
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                {condensing ? "Condensing…" : "Condense to one page"}
+              </Button>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-border bg-card p-5">
             <h3 className="text-sm font-medium text-foreground">Download</h3>

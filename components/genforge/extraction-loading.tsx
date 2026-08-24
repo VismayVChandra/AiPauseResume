@@ -1,50 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Loader2, Briefcase, GraduationCap, Wrench, Sparkles } from "lucide-react";
+import { useEffect } from "react";
+import { Check, Loader2, FileSearch, Wand2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TASKS = [
-  { key: "read", label: "Reading your profile", Icon: Sparkles },
-  { key: "exp", label: "Finding your experience", Icon: Briefcase },
-  { key: "edu", label: "Pulling in education", Icon: GraduationCap },
-  { key: "skills", label: "Matching skills to the role", Icon: Wrench },
-];
+  { key: "reading", label: "Reading your profile", Icon: FileSearch },
+  { key: "tailoring", label: "Tailoring for the role", Icon: Wand2 },
+] as const;
 
-// `ready` reflects the real extract+tailor API calls actually finishing —
-// the step animation is cosmetic pacing, but onDone never fires before the
-// real work is done, and never lingers long after it either.
+// Two phases, matching the two real network calls this pipeline actually
+// makes (reading = extract/manual-profile, tailoring = tailor-resume) — the
+// active/done state below reflects which request is actually in flight,
+// not a fixed timer standing in for progress we can't really observe.
 export function ExtractionLoading({
   role,
+  phase,
   ready,
   onDone,
 }: {
   role: string;
+  phase: "reading" | "tailoring";
   ready: boolean;
   onDone: () => void;
 }) {
-  const [active, setActive] = useState(0);
+  const activeIndex = phase === "reading" ? 0 : 1;
 
   useEffect(() => {
-    if (active >= TASKS.length) {
-      if (ready) {
-        const t = setTimeout(onDone, 400);
-        return () => clearTimeout(t);
-      }
-      return;
-    }
-    const t = setTimeout(() => setActive((a) => a + 1), 700);
+    if (!ready) return;
+    // A short settle beat so the final checkmark is visible before moving
+    // on — not a delay standing in for unfinished work, which has already
+    // finished by the time `ready` flips true.
+    const t = setTimeout(onDone, 400);
     return () => clearTimeout(t);
-  }, [active, ready, onDone]);
-
-  // If the real work finishes before the cosmetic animation catches up,
-  // fast-forward the remaining steps instead of leaving them looking stuck.
-  useEffect(() => {
-    if (ready && active < TASKS.length) {
-      const t = setTimeout(() => setActive(TASKS.length), 300);
-      return () => clearTimeout(t);
-    }
-  }, [ready, active]);
+  }, [ready, onDone]);
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col items-center justify-center py-16 text-center">
@@ -65,9 +54,9 @@ export function ExtractionLoading({
 
       <ul className="mt-8 flex w-full flex-col gap-2 text-left">
         {TASKS.map((task, i) => {
-          const done = i < active;
-          const running = i === active;
-          const upcoming = i > active;
+          const done = ready || i < activeIndex;
+          const running = !done && i === activeIndex;
+          const upcoming = !done && !running;
           return (
             <li
               key={task.key}

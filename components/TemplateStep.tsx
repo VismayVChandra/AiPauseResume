@@ -37,6 +37,41 @@ function TemplatePreview({ id }: { id: TemplateId }) {
       </svg>
     );
   }
+  if (id === "compact") {
+    return (
+      <svg viewBox="0 0 120 150" className="h-32 w-full rounded-md">
+        <rect width="120" height="150" fill="var(--paper)" stroke="var(--border)" />
+        <rect x="80" width="1" height="150" fill="var(--border)" />
+        <rect x="10" y="10" width="40" height="5" fill="var(--foreground)" />
+        <rect x="10" y="20" width="28" height="2" fill="var(--muted-foreground)" />
+        <rect x="10" y="32" width="24" height="2" fill="var(--foreground)" />
+        <rect x="10" y="38" width="60" height="1.5" fill="var(--muted)" />
+        <rect x="10" y="42" width="60" height="1.5" fill="var(--muted)" />
+        <rect x="10" y="52" width="24" height="2" fill="var(--foreground)" />
+        <rect x="10" y="58" width="60" height="1.5" fill="var(--muted)" />
+        <rect x="88" y="10" width="24" height="2" fill="var(--foreground)" />
+        <rect x="88" y="16" width="24" height="1.5" fill="var(--muted-foreground)" />
+        <rect x="88" y="30" width="24" height="2" fill="var(--foreground)" />
+        <rect x="88" y="36" width="24" height="1.5" fill="var(--muted-foreground)" />
+        <rect x="88" y="40" width="20" height="1.5" fill="var(--muted-foreground)" />
+      </svg>
+    );
+  }
+  if (id === "executive") {
+    return (
+      <svg viewBox="0 0 120 150" className="h-32 w-full rounded-md">
+        <rect width="120" height="150" fill="var(--paper)" stroke="var(--border)" />
+        <rect width="120" height="34" fill="oklch(0.3 0.02 255)" />
+        <rect x="12" y="10" width="46" height="5" fill="white" />
+        <rect x="12" y="20" width="34" height="2" fill="oklch(0.85 0.02 255)" />
+        <rect x="12" y="46" width="30" height="3" fill="var(--brand)" />
+        <rect x="12" y="54" width="96" height="2" fill="var(--muted)" />
+        <rect x="12" y="59" width="96" height="2" fill="var(--muted)" />
+        <rect x="12" y="72" width="30" height="3" fill="var(--brand)" />
+        <rect x="12" y="80" width="80" height="2" fill="var(--muted)" />
+      </svg>
+    );
+  }
   return (
     <svg viewBox="0 0 120 150" className="h-32 w-full rounded-md">
       <rect width="120" height="150" fill="var(--paper)" stroke="var(--border)" />
