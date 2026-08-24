@@ -255,7 +255,9 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
           ? "Microphone access is blocked — check your browser's site permissions."
           : reason === "audio-capture"
             ? "No microphone found."
-            : "Voice input hit an error — try again."
+            : reason === "network"
+              ? "Couldn't reach the speech recognition service. Brave blocks this by default — enable it under brave://settings/ (search \"speech\") and reload, or try Chrome/Edge instead."
+              : "Voice input hit an error — try again."
       );
     };
 
