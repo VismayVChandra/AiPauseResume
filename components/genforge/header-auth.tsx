@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Loader2, User as UserIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Loader2, User as UserIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendMagicLink } from "@/lib/supabase";
 
@@ -14,6 +14,27 @@ export function HeaderAuth({ onOpenDashboard }: { onOpenDashboard?: () => void }
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Click-outside and Escape both close the popover — the toggle button
+  // alone wasn't a discoverable way to dismiss it.
+  useEffect(() => {
+    if (!open) return;
+    function handlePointer(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
 
   async function handleSend() {
     if (!email.trim() || !email.includes("@")) {
@@ -32,7 +53,7 @@ export function HeaderAuth({ onOpenDashboard }: { onOpenDashboard?: () => void }
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand"
@@ -43,8 +64,15 @@ export function HeaderAuth({ onOpenDashboard }: { onOpenDashboard?: () => void }
 
       {open && (
         <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-72 rounded-xl border border-border bg-card p-4 shadow-lg">
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
           {status === "sent" ? (
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2 pr-4">
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
               <p className="text-xs leading-relaxed text-muted-foreground">
                 Check your inbox — we sent a sign-in link to {email}. Click it to access your
@@ -53,7 +81,7 @@ export function HeaderAuth({ onOpenDashboard }: { onOpenDashboard?: () => void }
             </div>
           ) : (
             <>
-              <p className="text-xs font-medium text-foreground">
+              <p className="pr-4 text-xs font-medium text-foreground">
                 Sign in to access resumes you&apos;ve saved
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">

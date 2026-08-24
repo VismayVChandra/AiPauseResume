@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -10,6 +10,8 @@ import {
   Sparkles,
   CheckCircle2,
   AlertCircle,
+  Mic,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LinkedInGlyph } from "@/components/genforge/logo";
@@ -96,7 +98,7 @@ export function InterviewStep({
       )}
 
       {questions && (
-        <ol className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
+        <ol className="mt-8 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
           {questions.map((q, i) => {
             const accent = ACCENTS[i % ACCENTS.length];
             return (
@@ -159,12 +161,85 @@ export function InterviewStep({
 // Mock-interview mode: type an answer to a question, get it judged against
 // the STAR framework, grounded in what was actually written (plus the
 // resume for context) — never a stronger version of events than given.
+// Minimal ambient shape for the Web Speech API — not in TS's default DOM
+// lib, and only Chrome/Edge/Safari ship it (no Firefox), so every use is
+// feature-detected before touching `window`.
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: any) => void) | null; // eslint-disable-line @typescript-eslint/no-explicit-any
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (
+    ((w.SpeechRecognition || w.webkitSpeechRecognition) as
+      | (new () => SpeechRecognitionLike)
+      | undefined) || null
+  );
+}
+
 function AnswerPractice({ question, resume }: { question: string; resume: TailoredResume }) {
   const [open, setOpen] = useState(false);
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<InterviewAnswerFeedback | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [recording, setRecording] = useState(false);
+  const [micSupported, setMicSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const baseTextRef = useRef(""); // answer text as it stood when recording started
+  const finalTranscriptRef = useRef(""); // confirmed (non-interim) speech since recording started
+
+  useEffect(() => {
+    setMicSupported(getSpeechRecognitionCtor() !== null);
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  function toggleMic() {
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) return;
+
+    if (recording) {
+      recognitionRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+
+    const recognition = new Ctor();
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    baseTextRef.current = answer.trim() ? answer.trim() + " " : "";
+    finalTranscriptRef.current = "";
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) final += transcript;
+        else interim += transcript;
+      }
+      if (final) finalTranscriptRef.current += final + " ";
+      setAnswer(baseTextRef.current + finalTranscriptRef.current + interim);
+    };
+    recognition.onerror = () => setRecording(false);
+    recognition.onend = () => setRecording(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setRecording(true);
+  }
 
   async function getFeedback() {
     if (!answer.trim()) return;
@@ -203,14 +278,41 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
       <label htmlFor={`answer-${question.slice(0, 20)}`} className="sr-only">
         Your answer
       </label>
-      <textarea
-        id={`answer-${question.slice(0, 20)}`}
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        rows={3}
-        placeholder="Type your answer as you'd say it out loud…"
-        className="w-full resize-none rounded-md border border-border bg-background px-2.5 py-2 text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15"
-      />
+      <div className="relative">
+        <textarea
+          id={`answer-${question.slice(0, 20)}`}
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          rows={3}
+          placeholder="Type your answer as you'd say it out loud, or use the mic…"
+          className={cn(
+            "w-full resize-none rounded-md border border-border bg-background py-2 pl-2.5 text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15",
+            micSupported ? "pr-9" : "pr-2.5"
+          )}
+        />
+        {micSupported && (
+          <button
+            type="button"
+            onClick={toggleMic}
+            aria-label={recording ? "Stop recording" : "Speak your answer"}
+            title={recording ? "Stop recording" : "Speak your answer"}
+            className={cn(
+              "absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md transition-colors",
+              recording
+                ? "bg-destructive text-white animate-pulse"
+                : "text-muted-foreground hover:bg-muted hover:text-brand"
+            )}
+          >
+            {recording ? <Square className="h-3 w-3" /> : <Mic className="h-3.5 w-3.5" />}
+          </button>
+        )}
+      </div>
+      {recording && (
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" />
+          Listening…
+        </p>
+      )}
       <div className="mt-2 flex items-center justify-between">
         <button
           onClick={() => setOpen(false)}
