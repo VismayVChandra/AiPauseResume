@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { AIService } from "@/lib/ai-service";
 import { TailoredResumeSchema } from "@/lib/schemas";
 
@@ -6,6 +7,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await checkRateLimit(req, "linkedin-optimize"))) {
+      return NextResponse.json(rateLimitResponse(), { status: 429 });
+    }
+
     const body = await req.json();
     const parsed = TailoredResumeSchema.safeParse(body.resume);
     if (!parsed.success) {

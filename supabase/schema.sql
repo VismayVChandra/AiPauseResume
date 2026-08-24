@@ -47,6 +47,47 @@ create table if not exists resume_versions (
   created_at timestamptz not null default now()
 );
 
+-- Backs a simple fixed-window rate limit on the AI-calling API routes
+-- (see lib/rate-limit.ts) — keyed by caller IP, reset each window. Uses
+-- Supabase rather than a separate service (Redis/Upstash) since this app
+-- has no other infra and the traffic volume doesn't need anything fancier.
+create table if not exists rate_limits (
+  key text primary key,
+  window_start timestamptz not null,
+  count int not null default 0
+);
+
+-- Atomic check-and-increment in one round trip: resets the counter if the
+-- window has expired, otherwise increments it, and reports whether the
+-- caller is still under the limit. Doing this in SQL (not read-then-write
+-- from the API route) avoids a race between concurrent requests from the
+-- same caller landing in the same window.
+create or replace function increment_rate_limit(p_key text, p_window_seconds int, p_limit int)
+returns boolean
+language plpgsql
+as $$
+declare
+  v_count int;
+begin
+  insert into rate_limits (key, window_start, count)
+  values (p_key, now(), 1)
+  on conflict (key) do update
+    set count = case
+          when rate_limits.window_start < now() - (p_window_seconds || ' seconds')::interval
+            then 1
+          else rate_limits.count + 1
+        end,
+        window_start = case
+          when rate_limits.window_start < now() - (p_window_seconds || ' seconds')::interval
+            then now()
+          else rate_limits.window_start
+        end
+  returning count into v_count;
+
+  return v_count <= p_limit;
+end;
+$$;
+
 create index if not exists idx_career_profiles_session on career_profiles(session_id);
 create index if not exists idx_career_profiles_user on career_profiles(user_id);
 create index if not exists idx_resumes_profile on resumes(career_profile_id);
@@ -58,23 +99,19 @@ create index if not exists idx_resume_versions_resume on resume_versions(resume_
 -- no account at all. Signing in is offered (never forced) as a way to save
 -- resumes for different roles and come back to them later. All writes and
 -- reads go through the service-role API routes (see lib/supabase.ts /
--- app/api/*), which is the real enforcement boundary: /api/my-resumes only
--- ever returns rows matching the authenticated user's own id. RLS below is
--- deliberately left permissive to match that (service role bypasses RLS
--- anyway) — tighten it if you ever query these tables directly from the
--- browser with the anon key instead of through the API routes.
+-- app/api/*, and lib/resume-access.ts for per-resume ownership checks),
+-- which are the real enforcement boundary — the service role bypasses RLS
+-- entirely, so these policies are about the OTHER path in: anyone who
+-- extracts NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY from
+-- the shipped browser bundle can call Supabase's REST API directly with
+-- them. RLS is the only thing standing between that and reading/writing
+-- every row in these tables — no policy here means no anon/authenticated
+-- access at all, which is correct: the app never legitimately needs the
+-- anon key to touch these tables directly.
 alter table career_profiles enable row level security;
 alter table resumes enable row level security;
 alter table resume_versions enable row level security;
-
-create policy "demo_mode_all_access_profiles" on career_profiles
-  for all using (true) with check (true);
-
-create policy "demo_mode_all_access_resumes" on resumes
-  for all using (true) with check (true);
-
-create policy "demo_mode_all_access_resume_versions" on resume_versions
-  for all using (true) with check (true);
+alter table rate_limits enable row level security;
 
 -- Migrating an existing deployment? Run just this block against your
 -- existing tables (uuid-ossp/tables above are guarded with IF NOT EXISTS,
@@ -100,9 +137,49 @@ create policy "demo_mode_all_access_resume_versions" on resume_versions
 --   created_at timestamptz not null default now()
 -- );
 -- alter table resume_versions enable row level security;
--- create policy "demo_mode_all_access_resume_versions" on resume_versions
---   for all using (true) with check (true);
 -- create index if not exists idx_career_profiles_user on career_profiles(user_id);
 -- create index if not exists idx_resumes_session on resumes(session_id);
 -- create index if not exists idx_resumes_user on resumes(user_id);
 -- create index if not exists idx_resume_versions_resume on resume_versions(resume_id, created_at);
+--
+-- Security hardening — run this if your project still has the old
+-- permissive RLS policies (from before this app added per-resume
+-- ownership checks in the API routes themselves). The anon key is public
+-- (it's in the shipped browser bundle), so a "using (true)" policy means
+-- anyone can read/write every row via Supabase's REST API directly,
+-- bypassing the app entirely:
+-- drop policy if exists "demo_mode_all_access_profiles" on career_profiles;
+-- drop policy if exists "demo_mode_all_access_resumes" on resumes;
+-- drop policy if exists "demo_mode_all_access_resume_versions" on resume_versions;
+--
+-- Rate limiting on the AI-calling routes (see lib/rate-limit.ts):
+-- create table if not exists rate_limits (
+--   key text primary key,
+--   window_start timestamptz not null,
+--   count int not null default 0
+-- );
+-- alter table rate_limits enable row level security;
+-- create or replace function increment_rate_limit(p_key text, p_window_seconds int, p_limit int)
+-- returns boolean
+-- language plpgsql
+-- as $$
+-- declare
+--   v_count int;
+-- begin
+--   insert into rate_limits (key, window_start, count)
+--   values (p_key, now(), 1)
+--   on conflict (key) do update
+--     set count = case
+--           when rate_limits.window_start < now() - (p_window_seconds || ' seconds')::interval
+--             then 1
+--           else rate_limits.count + 1
+--         end,
+--         window_start = case
+--           when rate_limits.window_start < now() - (p_window_seconds || ' seconds')::interval
+--             then now()
+--           else rate_limits.window_start
+--         end
+--   returning count into v_count;
+--   return v_count <= p_limit;
+-- end;
+-- $$;

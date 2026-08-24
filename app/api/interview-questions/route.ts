@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { AIService } from "@/lib/ai-service";
 import { TailoredResumeSchema } from "@/lib/schemas";
 
@@ -9,6 +10,10 @@ export const runtime = "nodejs";
 // always generated from exactly what's on screen, edited or not.
 export async function POST(req: NextRequest) {
   try {
+    if (!(await checkRateLimit(req, "interview-questions"))) {
+      return NextResponse.json(rateLimitResponse(), { status: 429 });
+    }
+
     const body = await req.json();
     const parsed = TailoredResumeSchema.safeParse(body.resume);
     if (!parsed.success) {

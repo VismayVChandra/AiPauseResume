@@ -225,6 +225,17 @@ export default function Home() {
     setStep("target-role");
   }
 
+  // Every resume-scoped call needs to prove it's allowed to touch that
+  // resume — x-session-id covers guest access (same browser that created
+  // it), the bearer token covers signed-in access (works once claimed,
+  // even from a different device). See lib/resume-access.ts server-side.
+  async function resumeAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = { "x-session-id": sessionId };
+    const token = await getAccessToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }
+
   async function saveEdits(next: TailoredResume) {
     setResume(next);
     if (!resumeId) return;
@@ -232,7 +243,7 @@ export default function Home() {
     try {
       await fetch(`/api/resumes/${resumeId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await resumeAuthHeaders()) },
         body: JSON.stringify({ resume: next }),
       });
       setSaveStatus("saved");
@@ -247,7 +258,7 @@ export default function Home() {
     try {
       await fetch(`/api/resumes/${resumeId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await resumeAuthHeaders()) },
         body: JSON.stringify({ resume, coverLetter: letter }),
       });
     } catch {
@@ -258,7 +269,9 @@ export default function Home() {
   async function openSavedResume(summary: SavedResumeSummary) {
     setError(null);
     try {
-      const res = await fetch(`/api/resumes/${summary.resumeId}`);
+      const res = await fetch(`/api/resumes/${summary.resumeId}`, {
+        headers: await resumeAuthHeaders(),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't open that resume.");
       setResumeId(json.resumeId);

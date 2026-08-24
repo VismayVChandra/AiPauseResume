@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { AIService } from "@/lib/ai-service";
 import { supabaseServer } from "@/lib/supabase";
 import { RawProfile } from "@/types/resume";
@@ -7,6 +8,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await checkRateLimit(req, "tailor-resume"))) {
+      return NextResponse.json(rateLimitResponse(), { status: 429 });
+    }
+
     const body = await req.json();
     const { careerProfileId, targetRole, templateId, sessionId } = body as {
       careerProfileId: string;

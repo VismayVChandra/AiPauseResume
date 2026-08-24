@@ -72,6 +72,7 @@ export function SaveAccountPrompt({ onDismiss }: { onDismiss: () => void }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@email.com"
+            aria-label="Email address"
             className="w-44 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15"
           />
           <Button size="sm" onClick={handleSend} disabled={status === "sending"}>

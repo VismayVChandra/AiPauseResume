@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import { Link2, Check, Copy, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getOrCreateSessionId, getAccessToken } from "@/lib/supabase";
+
+async function resumeAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "x-session-id": getOrCreateSessionId() };
+  const token = await getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
 
 // Self-contained, same pattern as the Cover letter / Download panels on
 // the export screen — owns its own is_public fetch/toggle. Off by default
@@ -16,7 +24,8 @@ export function ShareLinkPanel({ resumeId }: { resumeId: string | null }) {
 
   useEffect(() => {
     if (!resumeId) return;
-    fetch(`/api/resumes/${resumeId}`)
+    resumeAuthHeaders()
+      .then((headers) => fetch(`/api/resumes/${resumeId}`, { headers }))
       .then((r) => r.json())
       .then((json) => setIsPublic(Boolean(json.isPublic)))
       .catch(() => {});
@@ -32,7 +41,7 @@ export function ShareLinkPanel({ resumeId }: { resumeId: string | null }) {
     try {
       const res = await fetch(`/api/resumes/${resumeId}/public`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await resumeAuthHeaders()) },
         body: JSON.stringify({ isPublic: next }),
       });
       if (!res.ok) throw new Error("Couldn't update sharing.");

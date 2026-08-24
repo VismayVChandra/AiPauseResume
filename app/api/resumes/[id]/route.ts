@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { verifyResumeAccess } from "@/lib/resume-access";
 import { TailoredResumeSchema, CoverLetterSchema } from "@/lib/schemas";
 
 export const runtime = "nodejs";
@@ -11,6 +12,10 @@ export const runtime = "nodejs";
 // coverLetter is optional: omit it to leave whatever's already saved alone.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!(await verifyResumeAccess(req, params.id))) {
+      return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+    }
+
     const body = await req.json();
     const parsed = TailoredResumeSchema.safeParse(body.resume);
     if (!parsed.success) {
@@ -55,7 +60,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await verifyResumeAccess(req, params.id))) {
+    return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+  }
+
   const supabase = supabaseServer();
   const { data, error } = await supabase
     .from("resumes")

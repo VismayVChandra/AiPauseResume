@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { verifyResumeAccess } from "@/lib/resume-access";
 import { TailoredResumeSchema } from "@/lib/schemas";
 import { z } from "zod";
 
@@ -9,7 +10,11 @@ export const runtime = "nodejs";
 // (initial tailor, right before an AI improvement is applied), not on
 // every autosave edit. Lets a user see what changed and revert.
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await verifyResumeAccess(req, params.id))) {
+    return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+  }
+
   const supabase = supabaseServer();
   const { data, error } = await supabase
     .from("resume_versions")
@@ -39,6 +44,10 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!(await verifyResumeAccess(req, params.id))) {
+      return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+    }
+
     const body = await req.json();
     const parsed = BodySchema.safeParse(body);
     if (!parsed.success) {

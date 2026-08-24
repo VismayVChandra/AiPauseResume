@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { verifyResumeAccess } from "@/lib/resume-access";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -11,6 +12,10 @@ const BodySchema = z.object({ isPublic: z.boolean() });
 // it turns on, and it's explicit, one resume at a time.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!(await verifyResumeAccess(req, params.id))) {
+      return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+    }
+
     const body = await req.json();
     const parsed = BodySchema.safeParse(body);
     if (!parsed.success) {

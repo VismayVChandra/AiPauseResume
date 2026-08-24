@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { KeywordMatchPanel } from "@/components/genforge/keyword-match-panel";
 import { cn } from "@/lib/utils";
 import { detectTimelineGaps } from "@/lib/timeline-gaps";
+import { getOrCreateSessionId, getAccessToken } from "@/lib/supabase";
 import { ResumeScore, TailoredResume } from "@/types/resume";
 import { CalendarClock } from "lucide-react";
 
@@ -296,11 +297,17 @@ export function ScoreStep({
       // is revertible from the review screen's version history if the
       // rewrite doesn't actually land better.
       if (resumeId) {
-        fetch(`/api/resumes/${resumeId}/versions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resume, label: "Before AI improvement" }),
-        }).catch(() => {
+        getAccessToken().then((token) =>
+          fetch(`/api/resumes/${resumeId}/versions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-session-id": getOrCreateSessionId(),
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ resume, label: "Before AI improvement" }),
+          })
+        ).catch(() => {
           // best-effort — a failed snapshot shouldn't block the improvement itself
         });
       }

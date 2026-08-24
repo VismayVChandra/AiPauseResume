@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { AIService } from "@/lib/ai-service";
 import { extractTextFromPdf, PdfValidationError } from "@/lib/pdf-extract";
 import { supabaseServer } from "@/lib/supabase";
@@ -8,6 +9,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await checkRateLimit(req, "extract-profile"))) {
+      return NextResponse.json(rateLimitResponse(), { status: 429 });
+    }
+
     const contentType = req.headers.get("content-type") || "";
     const sessionId = req.headers.get("x-session-id") || "anonymous";
 

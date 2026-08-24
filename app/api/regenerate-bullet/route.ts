@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { AIService } from "@/lib/ai-service";
 import { z } from "zod";
 
@@ -17,6 +18,10 @@ const BodySchema = z.object({
 // touched just because a whole-resume pass was triggered.
 export async function POST(req: NextRequest) {
   try {
+    if (!(await checkRateLimit(req, "regenerate-bullet"))) {
+      return NextResponse.json(rateLimitResponse(), { status: 429 });
+    }
+
     const body = await req.json();
     const parsed = BodySchema.safeParse(body);
     if (!parsed.success) {

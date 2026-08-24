@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { History, Loader2, RotateCcw } from "lucide-react";
 import { ResumeVersion, TailoredResume } from "@/types/resume";
+import { getOrCreateSessionId, getAccessToken } from "@/lib/supabase";
 
 // Lists checkpoint snapshots for the current resume (initial tailor, right
 // before each AI improvement) and lets the user jump back to one. Loaded
@@ -29,7 +30,13 @@ export function VersionHistory({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/resumes/${resumeId}/versions`);
+      const token = await getAccessToken();
+      const res = await fetch(`/api/resumes/${resumeId}/versions`, {
+        headers: {
+          "x-session-id": getOrCreateSessionId(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't load version history.");
       setVersions(json.versions);
