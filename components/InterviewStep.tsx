@@ -169,7 +169,7 @@ interface SpeechRecognitionLike {
   continuous: boolean;
   interimResults: boolean;
   onresult: ((event: any) => void) | null; // eslint-disable-line @typescript-eslint/no-explicit-any
-  onerror: (() => void) | null;
+  onerror: ((event: any) => void) | null; // eslint-disable-line @typescript-eslint/no-explicit-any
   onend: (() => void) | null;
   start(): void;
   stop(): void;
@@ -194,13 +194,19 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
 
   const [recording, setRecording] = useState(false);
   const [micSupported, setMicSupported] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const baseTextRef = useRef(""); // answer text as it stood when recording started
   const finalTranscriptRef = useRef(""); // confirmed (non-interim) speech since recording started
+  // Chrome/Edge can fire `onend` on their own after a short silence even
+  // with continuous:true set — without this flag, that reads as "the user
+  // stopped" and the mic gives up after ~1s despite still being wanted.
+  const stoppedByUserRef = useRef(true);
 
   useEffect(() => {
     setMicSupported(getSpeechRecognitionCtor() !== null);
     return () => {
+      stoppedByUserRef.current = true;
       recognitionRef.current?.stop();
     };
   }, []);
@@ -210,17 +216,20 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
     if (!Ctor) return;
 
     if (recording) {
+      stoppedByUserRef.current = true;
       recognitionRef.current?.stop();
       setRecording(false);
       return;
     }
 
+    setMicError(null);
+    baseTextRef.current = answer.trim() ? answer.trim() + " " : "";
+    finalTranscriptRef.current = "";
+
     const recognition = new Ctor();
     recognition.lang = "en-US";
     recognition.continuous = true;
     recognition.interimResults = true;
-    baseTextRef.current = answer.trim() ? answer.trim() + " " : "";
-    finalTranscriptRef.current = "";
 
     recognition.onresult = (event) => {
       let interim = "";
@@ -233,10 +242,40 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
       if (final) finalTranscriptRef.current += final + " ";
       setAnswer(baseTextRef.current + finalTranscriptRef.current + interim);
     };
-    recognition.onerror = () => setRecording(false);
-    recognition.onend = () => setRecording(false);
+
+    recognition.onerror = (event) => {
+      const reason = event?.error as string | undefined;
+      // "no-speech" just means it hasn't heard anything yet — onend fires
+      // right after this and the auto-restart below picks it back up, so
+      // this isn't a real failure worth interrupting the user over.
+      if (reason === "no-speech" || reason === "aborted") return;
+      stoppedByUserRef.current = true;
+      setMicError(
+        reason === "not-allowed" || reason === "service-not-allowed"
+          ? "Microphone access is blocked — check your browser's site permissions."
+          : reason === "audio-capture"
+            ? "No microphone found."
+            : "Voice input hit an error — try again."
+      );
+    };
+
+    recognition.onend = () => {
+      if (stoppedByUserRef.current) {
+        setRecording(false);
+        return;
+      }
+      // Not a deliberate stop — the browser ended the session on its own
+      // (silence timeout, etc.). Resume transparently so "continuous"
+      // actually behaves continuously instead of quitting after ~1s.
+      try {
+        recognition.start();
+      } catch {
+        setRecording(false);
+      }
+    };
 
     recognitionRef.current = recognition;
+    stoppedByUserRef.current = false;
     recognition.start();
     setRecording(true);
   }
@@ -308,11 +347,12 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
         )}
       </div>
       {recording && (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" />
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-brand">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand" />
           Listening…
         </p>
       )}
+      {micError && <p className="mt-1 text-[11px] text-destructive">{micError}</p>}
       <div className="mt-2 flex items-center justify-between">
         <button
           onClick={() => setOpen(false)}
