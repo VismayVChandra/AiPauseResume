@@ -1,5 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
-import { RawProfile, TailoredResume, InterviewQuestion, ResumeScore, CoverLetter } from "@/types/resume";
+import {
+  RawProfile,
+  TailoredResume,
+  InterviewQuestion,
+  ResumeScore,
+  CoverLetter,
+  LinkedInOptimization,
+  InterviewAnswerFeedback,
+} from "@/types/resume";
 import {
   RawProfileSchema,
   TailoredResumeSchema,
@@ -7,6 +15,8 @@ import {
   ResumeScoreSchema,
   CoverLetterSchema,
   BulletVariantsSchema,
+  LinkedInOptimizationSchema,
+  InterviewAnswerFeedbackSchema,
 } from "@/lib/schemas";
 
 const MODEL = "gemini-3.5-flash-lite";
@@ -286,6 +296,38 @@ JSON schema:
   "variants": string[] (exactly 3 rewritten versions of the bullet)
 }`;
 
+const LINKEDIN_OPTIMIZE_SYSTEM_PROMPT = `You write a LinkedIn headline and About section for someone, using only facts already present in their tailored resume.
+
+Rules (must follow exactly):
+- Output ONLY valid JSON matching the schema below. No preamble, no markdown fences, no commentary.
+- You may ONLY reference companies, titles, skills, and accomplishments already in the source resume. Never invent an employer, metric, or accomplishment.
+- "headline": under 220 characters (LinkedIn's limit), specific rather than generic — lead with the strongest concrete thing about them (a role, a domain, a standout skill combo), not filler like "passionate professional" or "results-driven".
+- "about": 3-4 short paragraphs, first person, conversational but professional — LinkedIn's About section reads differently from a resume summary: more voice, still grounded in fact, no corporate buzzwords ("synergy", "team player", "go-getter").
+- Do not simply restate the resume's own summary verbatim — reframe for a LinkedIn audience (recruiters skimming, not an ATS parser).
+
+JSON schema:
+{
+  "headline": string,
+  "about": string
+}`;
+
+const INTERVIEW_ANSWER_FEEDBACK_SYSTEM_PROMPT = `You give feedback on one typed mock-interview answer, judged against the STAR framework (Situation, Task, Action, Result), grounded only in what the person actually wrote plus their resume for context.
+
+Rules (must follow exactly):
+- Output ONLY valid JSON matching the schema below. No preamble, no markdown fences, no commentary.
+- "starClarity": one short sentence on how clearly Situation/Task/Action/Result come through in THIS answer — name which part (if any) is missing or weak.
+- "strengths": 1-3 specific things this answer does well, quoting or referencing the actual content.
+- "improvements": 1-3 specific, actionable gaps — vague language, missing outcome/metric, doesn't answer the question asked, etc.
+- "suggestedRewrite": a tightened version of the SAME answer — same underlying facts and claims as what the person wrote, just restructured/sharpened for STAR clarity. Never add a new fact, number, or outcome that wasn't already in their answer or their resume.
+
+JSON schema:
+{
+  "starClarity": string,
+  "strengths": string[],
+  "improvements": string[],
+  "suggestedRewrite": string
+}`;
+
 export const AIService = {
   /**
    * Step 3: raw, un-tailored extraction from uploaded/pasted text.
@@ -545,5 +587,60 @@ export const AIService = {
       );
     }
     return parsed.data.variants;
+  },
+
+  /**
+   * Suggests a LinkedIn headline + About section from a tailored resume.
+   * Same anti-fabrication constraint as everywhere else — a different
+   * output shape/voice than the resume, not new claims about the person.
+   */
+  async optimizeLinkedIn(resume: TailoredResume): Promise<LinkedInOptimization> {
+    const raw = await callStrictJson(
+      LINKEDIN_OPTIMIZE_SYSTEM_PROMPT,
+      `Tailored resume (JSON, factual ground truth — do not exceed it):\n${JSON.stringify(
+        resume,
+        null,
+        2
+      )}`
+    );
+    const parsed = LinkedInOptimizationSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(
+        `AI LinkedIn optimization did not match the expected schema: ${parsed.error.message}`
+      );
+    }
+    return parsed.data;
+  },
+
+  /**
+   * Mock interview mode: judges one typed answer against the STAR
+   * framework, grounded in the answer itself (plus the resume for
+   * context) — never invents a stronger version of events than what the
+   * person actually described.
+   */
+  async evaluateInterviewAnswer(params: {
+    question: string;
+    answer: string;
+    resume: TailoredResume;
+  }): Promise<InterviewAnswerFeedback> {
+    const { question, answer, resume } = params;
+    if (!answer || !answer.trim()) {
+      throw new Error("An answer is required to get feedback.");
+    }
+    const raw = await callStrictJson(
+      INTERVIEW_ANSWER_FEEDBACK_SYSTEM_PROMPT,
+      `Interview question:\n${question}\n\nCandidate's answer:\n${answer}\n\nResume context (for grounding only, do not import unrelated resume claims into the answer):\n${JSON.stringify(
+        resume,
+        null,
+        2
+      )}`
+    );
+    const parsed = InterviewAnswerFeedbackSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(
+        `AI interview feedback did not match the expected schema: ${parsed.error.message}`
+      );
+    }
+    return parsed.data;
   },
 };

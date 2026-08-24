@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Plus, FileText, Loader2, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAccessToken } from "@/lib/supabase";
+import { APPLICATION_STATUS_OPTIONS, ApplicationStatus } from "@/types/resume";
+import { cn } from "@/lib/utils";
 
 export interface SavedResumeSummary {
   resumeId: string;
@@ -12,7 +14,19 @@ export interface SavedResumeSummary {
   fullName: string;
   templateId: string;
   updatedAt: string;
+  isPublic: boolean;
+  applicationStatus: string;
+  companyName: string;
+  appliedAt: string;
 }
+
+const STATUS_TONE: Record<string, string> = {
+  not_applied: "bg-muted text-muted-foreground",
+  applied: "bg-blue-50 text-blue-700",
+  interviewing: "bg-amber-50 text-amber-800",
+  offer: "bg-brand-muted/60 text-brand",
+  rejected: "bg-destructive/10 text-destructive",
+};
 
 export function MyResumesView({
   onOpen,
@@ -25,6 +39,40 @@ export function MyResumesView({
 }) {
   const [resumes, setResumes] = useState<SavedResumeSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function updateStatus(resumeId: string, status: ApplicationStatus) {
+    setResumes((prev) =>
+      prev ? prev.map((r) => (r.resumeId === resumeId ? { ...r, applicationStatus: status } : r)) : prev
+    );
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      await fetch(`/api/resumes/${resumeId}/tracker`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+    } catch {
+      // best-effort — status stays updated locally even if the write failed
+    }
+  }
+
+  async function updateCompany(resumeId: string, companyName: string) {
+    setResumes((prev) =>
+      prev ? prev.map((r) => (r.resumeId === resumeId ? { ...r, companyName } : r)) : prev
+    );
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      await fetch(`/api/resumes/${resumeId}/tracker`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ companyName: companyName || null }),
+      });
+    } catch {
+      // best-effort
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -106,10 +154,38 @@ export function MyResumesView({
                   Updated {new Date(r.updatedAt).toLocaleDateString()}
                 </span>
               </button>
+              <div className="mt-3 flex w-full flex-wrap items-center gap-2">
+                <select
+                  value={r.applicationStatus}
+                  onChange={(e) => updateStatus(r.resumeId, e.target.value as ApplicationStatus)}
+                  aria-label="Application status"
+                  className={cn(
+                    "rounded-full border-0 px-2.5 py-1 text-[11px] font-medium outline-none",
+                    STATUS_TONE[r.applicationStatus] || STATUS_TONE.not_applied
+                  )}
+                >
+                  {APPLICATION_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  defaultValue={r.companyName}
+                  onBlur={(e) => {
+                    if (e.target.value !== r.companyName) updateCompany(r.resumeId, e.target.value);
+                  }}
+                  placeholder="Company (optional)"
+                  aria-label="Company applied to"
+                  className="min-w-0 flex-1 rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-[11px] text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-brand"
+                />
+              </div>
+
               {onRetailor && (
                 <button
                   onClick={() => onRetailor(r)}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand-muted/50"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand-muted/50"
                 >
                   <Repeat className="h-3 w-3" />
                   Tailor for another role

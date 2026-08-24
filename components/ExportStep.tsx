@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoverLetterPanel } from "@/components/genforge/cover-letter-panel";
+import { ShareLinkPanel } from "@/components/genforge/share-link-panel";
+import { LinkedInOptimizerPanel } from "@/components/genforge/linkedin-optimizer-panel";
 import { CoverLetter, TailoredResume, TEMPLATE_OPTIONS } from "@/types/resume";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +48,7 @@ function downloadBlob(blob: Blob, filename: string) {
 
 export function ExportStep({
   resume,
+  resumeId,
   coverLetter,
   onCoverLetterChange,
   onChangeTemplate,
@@ -55,6 +58,7 @@ export function ExportStep({
   onTailorAnotherRole,
 }: {
   resume: TailoredResume;
+  resumeId: string | null;
   coverLetter: CoverLetter | null;
   onCoverLetterChange: (letter: CoverLetter) => void;
   onChangeTemplate: (templateId: TailoredResume["templateId"]) => void;
@@ -375,6 +379,10 @@ export function ExportStep({
             coverLetter={coverLetter}
             onChange={onCoverLetterChange}
           />
+
+          <LinkedInOptimizerPanel resume={resume} />
+
+          <ShareLinkPanel resumeId={resumeId} />
 
           {onTailorAnotherRole && (
             <button

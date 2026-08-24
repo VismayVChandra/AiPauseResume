@@ -454,6 +454,7 @@ export default function Home() {
                 )}
                 <ExportStep
                   resume={resume}
+                  resumeId={resumeId}
                   coverLetter={coverLetter}
                   onCoverLetterChange={saveCoverLetter}
                   onChangeTemplate={(id) => saveEdits({ ...resume, templateId: id })}

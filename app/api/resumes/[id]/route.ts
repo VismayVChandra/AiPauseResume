@@ -59,7 +59,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const supabase = supabaseServer();
   const { data, error } = await supabase
     .from("resumes")
-    .select("id, career_profile_id, resume_json, cover_letter_json")
+    .select("id, career_profile_id, resume_json, cover_letter_json, is_public")
     .eq("id", params.id)
     .single();
 
@@ -71,5 +71,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     careerProfileId: data.career_profile_id,
     resume: data.resume_json,
     coverLetter: data.cover_letter_json,
+    isPublic: Boolean(data.is_public),
   });
 }

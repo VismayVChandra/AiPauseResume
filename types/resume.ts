@@ -194,3 +194,41 @@ export interface ResumeScore {
   areasToImprove: string[];
   suggestions: string[];
 }
+
+// Output of AIService.optimizeLinkedIn — a suggested LinkedIn headline and
+// About section, grounded only in the tailored resume it's generated from.
+export interface LinkedInOptimization {
+  headline: string;
+  about: string;
+}
+
+// Output of AIService.evaluateInterviewAnswer — feedback on one typed mock
+// interview answer, judged against the STAR framework (Situation, Task,
+// Action, Result) and grounded only in what the person actually wrote.
+export interface InterviewAnswerFeedback {
+  starClarity: string; // one short line on how clearly Situation/Task/Action/Result come through
+  strengths: string[];
+  improvements: string[];
+  suggestedRewrite: string; // a tightened version of the SAME answer, no new claims added
+}
+
+// Deterministic (non-AI) gap found between two consecutive experience
+// entries once sorted chronologically — pure date math, not a model's
+// judgment call.
+export interface TimelineGap {
+  beforeLabel: string; // the earlier role, e.g. "Engineer @ Acme"
+  afterLabel: string; // the later role that follows the gap
+  months: number;
+}
+
+// Per-resume application-tracking metadata — user-entered, never touched
+// by the AI. Lives alongside resume_json in the resumes table.
+export type ApplicationStatus = "not_applied" | "applied" | "interviewing" | "offer" | "rejected";
+
+export const APPLICATION_STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+  { value: "not_applied", label: "Not applied" },
+  { value: "applied", label: "Applied" },
+  { value: "interviewing", label: "Interviewing" },
+  { value: "offer", label: "Offer" },
+  { value: "rejected", label: "Rejected" },
+];

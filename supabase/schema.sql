@@ -25,6 +25,11 @@ create table if not exists resumes (
   target_role text not null,                 -- what the user typed in step 1
   resume_json jsonb not null,                -- structured tailored resume (see types/resume.ts: TailoredResume)
   cover_letter_json jsonb,                   -- optional generated cover letter (see types/resume.ts: CoverLetter)
+  is_public boolean not null default false,  -- opt-in flag for the read-only /r/[id] share page — off by default
+  application_status text not null default 'not_applied', -- 'not_applied' | 'applied' | 'interviewing' | 'offer' | 'rejected'
+  company_name text,                         -- optional, for the application tracker on My Resumes
+  applied_at date,
+  tracker_notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -79,6 +84,11 @@ create policy "demo_mode_all_access_resume_versions" on resume_versions
 -- alter table resumes add column if not exists user_id uuid references auth.users(id);
 -- alter table resumes add column if not exists session_id text;
 -- alter table resumes add column if not exists cover_letter_json jsonb;
+-- alter table resumes add column if not exists is_public boolean not null default false;
+-- alter table resumes add column if not exists application_status text not null default 'not_applied';
+-- alter table resumes add column if not exists company_name text;
+-- alter table resumes add column if not exists applied_at date;
+-- alter table resumes add column if not exists tracker_notes text;
 -- update resumes r set session_id = cp.session_id
 --   from career_profiles cp where cp.id = r.career_profile_id and r.session_id is null;
 -- alter table resumes alter column session_id set not null;

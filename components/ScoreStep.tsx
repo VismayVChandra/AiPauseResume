@@ -19,7 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { KeywordMatchPanel } from "@/components/genforge/keyword-match-panel";
 import { cn } from "@/lib/utils";
+import { detectTimelineGaps } from "@/lib/timeline-gaps";
 import { ResumeScore, TailoredResume } from "@/types/resume";
+import { CalendarClock } from "lucide-react";
 
 function scoreColor(score: number) {
   if (score >= 80) return { text: "text-brand", ring: "var(--brand)", bg: "bg-brand-muted/50" };
@@ -281,6 +283,9 @@ export function ScoreStep({
     () => (pendingImproved ? buildDiffs(resume, pendingImproved) : []),
     [pendingImproved, resume]
   );
+
+  // Deterministic — pure date math on the resume's own dates, no AI call.
+  const timelineGaps = useMemo(() => detectTimelineGaps(resume.experience), [resume.experience]);
 
   async function handleImprove() {
     if (!score) return;
@@ -597,6 +602,26 @@ export function ScoreStep({
                     </li>
                   );
                 })}
+              </ul>
+            </div>
+          )}
+
+          {timelineGaps.length > 0 && (
+            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-amber-900">
+                <CalendarClock className="h-4 w-4" />
+                Career timeline check
+              </h3>
+              <p className="mt-1 text-xs text-amber-800">
+                A deterministic date check (not AI) — gaps of 3+ months between roles, in case
+                they&apos;re worth a line in your summary or an answer ready for the interview.
+              </p>
+              <ul className="mt-3 flex flex-col gap-1.5">
+                {timelineGaps.map((g, i) => (
+                  <li key={i} className="text-xs leading-relaxed text-amber-900">
+                    <b>{g.months}-month gap</b> between {g.beforeLabel} and {g.afterLabel}
+                  </li>
+                ))}
               </ul>
             </div>
           )}

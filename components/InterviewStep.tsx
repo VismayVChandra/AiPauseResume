@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, ArrowLeft, RefreshCw, Lightbulb } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowLeft,
+  RefreshCw,
+  Lightbulb,
+  MessageSquare,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LinkedInGlyph } from "@/components/genforge/logo";
 import { cn } from "@/lib/utils";
-import { InterviewQuestion, TailoredResume } from "@/types/resume";
+import { InterviewAnswerFeedback, InterviewQuestion, TailoredResume } from "@/types/resume";
 
 // A small, cheerful multi-color accent set (Google-tab-style) used to give
 // each question card a distinct identity in the grid.
@@ -125,6 +134,8 @@ export function InterviewStep({
                   />
                   <p className="text-xs leading-relaxed text-foreground/80">{q.tip}</p>
                 </div>
+
+                <AnswerPractice question={q.question} resume={resume} />
               </li>
             );
           })}
@@ -141,6 +152,116 @@ export function InterviewStep({
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// Mock-interview mode: type an answer to a question, get it judged against
+// the STAR framework, grounded in what was actually written (plus the
+// resume for context) — never a stronger version of events than given.
+function AnswerPractice({ question, resume }: { question: string; resume: TailoredResume }) {
+  const [open, setOpen] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [feedback, setFeedback] = useState<InterviewAnswerFeedback | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function getFeedback() {
+    if (!answer.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/interview-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, answer, resume }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't get feedback.");
+      setFeedback(json.feedback as InterviewAnswerFeedback);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't get feedback.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-2 border-t border-border px-5 py-2.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-brand"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        Practice answering this one
+      </button>
+    );
+  }
+
+  return (
+    <div className="border-t border-border px-5 py-3">
+      <label htmlFor={`answer-${question.slice(0, 20)}`} className="sr-only">
+        Your answer
+      </label>
+      <textarea
+        id={`answer-${question.slice(0, 20)}`}
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        rows={3}
+        placeholder="Type your answer as you'd say it out loud…"
+        className="w-full resize-none rounded-md border border-border bg-background px-2.5 py-2 text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15"
+      />
+      <div className="mt-2 flex items-center justify-between">
+        <button
+          onClick={() => setOpen(false)}
+          className="text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          Hide
+        </button>
+        <Button size="sm" onClick={getFeedback} disabled={loading || !answer.trim()} className="gap-1.5">
+          <Sparkles className="h-3.5 w-3.5" />
+          {loading ? "Reviewing…" : "Get feedback"}
+        </Button>
+      </div>
+
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+
+      {feedback && (
+        <div className="mt-3 flex flex-col gap-2.5 rounded-lg border border-brand/20 bg-brand-muted/15 p-3">
+          <p className="text-xs font-medium text-foreground">{feedback.starClarity}</p>
+
+          {feedback.strengths.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {feedback.strengths.map((s, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-xs leading-relaxed text-foreground/85">
+                  <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-brand" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {feedback.improvements.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {feedback.improvements.map((s, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-xs leading-relaxed text-foreground/85">
+                  <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {feedback.suggestedRewrite && (
+            <div className="rounded-md border border-border bg-card p-2.5">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Tightened version
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-foreground">{feedback.suggestedRewrite}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -110,3 +110,15 @@ export const CoverLetterSchema = z.object({
 export const BulletVariantsSchema = z.object({
   variants: z.array(z.string()).min(1).max(4),
 });
+
+export const LinkedInOptimizationSchema = z.object({
+  headline: z.string(),
+  about: z.string(),
+});
+
+export const InterviewAnswerFeedbackSchema = z.object({
+  starClarity: z.string().default(""),
+  strengths: z.array(z.string()).default([]),
+  improvements: z.array(z.string()).default([]),
+  suggestedRewrite: z.string().default(""),
+});

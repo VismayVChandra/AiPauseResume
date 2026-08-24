@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
     const supabase = supabaseServer();
     const { data, error } = await supabase
       .from("resumes")
-      .select("id, target_role, resume_json, updated_at, career_profile_id")
+      .select(
+        "id, target_role, resume_json, updated_at, career_profile_id, is_public, application_status, company_name, applied_at"
+      )
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
 
@@ -32,6 +34,10 @@ export async function GET(req: NextRequest) {
         fullName: resume.fullName,
         templateId: resume.templateId,
         updatedAt: row.updated_at as string,
+        isPublic: Boolean(row.is_public),
+        applicationStatus: (row.application_status as string) || "not_applied",
+        companyName: (row.company_name as string) || "",
+        appliedAt: (row.applied_at as string) || "",
       };
     });
 
