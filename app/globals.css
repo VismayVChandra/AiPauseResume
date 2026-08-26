@@ -6,37 +6,59 @@
   color-scheme: light;
   --radius: 0.5rem;
 
-  /* Paper & ink palette, ported from the v0 design */
-  --background: oklch(0.981 0.006 83);
-  --foreground: oklch(0.24 0.012 255);
-
-  --card: oklch(0.997 0.002 83);
-  --card-foreground: oklch(0.24 0.012 255);
-
-  --primary: oklch(0.26 0.014 255);
-  --primary-foreground: oklch(0.985 0.005 83);
-
-  --muted: oklch(0.955 0.007 83);
-  --muted-foreground: oklch(0.505 0.012 255);
-
-  --destructive: oklch(0.55 0.2 27);
-  --destructive-foreground: oklch(0.985 0.005 83);
-
-  --border: oklch(0.9 0.008 83);
-  --ring: oklch(0.52 0.09 168);
-
+  /* Paper & ink palette, ported from the v0 design.
+   *
+   * Each colour is defined twice, from ONE source of truth: a `-raw`
+   * variable holding bare oklch channels, then the full colour derived
+   * from it. The raw form is what tailwind.config.ts interpolates into
+   * `oklch(var(--x-raw) / <alpha-value>)` so opacity modifiers actually
+   * work — `bg-brand/50`, `ring-brand/15` and friends silently rendered
+   * fully transparent while the config pointed at a complete colour,
+   * because Tailwind had nowhere to inject the alpha. The derived full
+   * colour keeps direct `var(--brand)` usage working in inline styles
+   * and SVG fills. */
+  --background-raw: 0.981 0.006 83;
+  --foreground-raw: 0.24 0.012 255;
+  --card-raw: 0.997 0.002 83;
+  --card-foreground-raw: 0.24 0.012 255;
+  --primary-raw: 0.26 0.014 255;
+  --primary-foreground-raw: 0.985 0.005 83;
+  --muted-raw: 0.955 0.007 83;
+  --muted-foreground-raw: 0.505 0.012 255;
+  --destructive-raw: 0.55 0.2 27;
+  --destructive-foreground-raw: 0.985 0.005 83;
+  --border-raw: 0.9 0.008 83;
+  --ring-raw: 0.52 0.09 168;
   /* Brand accent: calm pine green for progress/success */
-  --brand: oklch(0.5 0.088 168);
-  --brand-foreground: oklch(0.985 0.005 83);
-  --brand-muted: oklch(0.93 0.03 168);
-
+  --brand-raw: 0.5 0.088 168;
+  --brand-foreground-raw: 0.985 0.005 83;
+  --brand-muted-raw: 0.93 0.03 168;
   /* Paper surfaces (the resume "sheet") */
-  --paper: oklch(0.998 0.001 83);
-  --paper-edge: oklch(0.9 0.008 83);
-
+  --paper-raw: 0.998 0.001 83;
+  --paper-edge-raw: 0.9 0.008 83;
   /* LinkedIn-source indicator — muted steel blue, distinct from brand green */
-  --linkedin: oklch(0.5 0.06 245);
-  --linkedin-muted: oklch(0.93 0.025 245);
+  --linkedin-raw: 0.5 0.06 245;
+  --linkedin-muted-raw: 0.93 0.025 245;
+
+  --background: oklch(var(--background-raw));
+  --foreground: oklch(var(--foreground-raw));
+  --card: oklch(var(--card-raw));
+  --card-foreground: oklch(var(--card-foreground-raw));
+  --primary: oklch(var(--primary-raw));
+  --primary-foreground: oklch(var(--primary-foreground-raw));
+  --muted: oklch(var(--muted-raw));
+  --muted-foreground: oklch(var(--muted-foreground-raw));
+  --destructive: oklch(var(--destructive-raw));
+  --destructive-foreground: oklch(var(--destructive-foreground-raw));
+  --border: oklch(var(--border-raw));
+  --ring: oklch(var(--ring-raw));
+  --brand: oklch(var(--brand-raw));
+  --brand-foreground: oklch(var(--brand-foreground-raw));
+  --brand-muted: oklch(var(--brand-muted-raw));
+  --paper: oklch(var(--paper-raw));
+  --paper-edge: oklch(var(--paper-edge-raw));
+  --linkedin: oklch(var(--linkedin-raw));
+  --linkedin-muted: oklch(var(--linkedin-muted-raw));
 }
 
 body {
