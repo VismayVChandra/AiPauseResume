@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { Check, Loader2, FileSearch, Wand2, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Loader2, FileSearch, Wand2, Sparkles, ArrowRight, Gamepad2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PauseRunGame } from "@/components/genforge/pause-run-game";
 import { cn } from "@/lib/utils";
 
 const TASKS = [
@@ -25,34 +27,55 @@ export function ExtractionLoading({
   onDone: () => void;
 }) {
   const activeIndex = phase === "reading" ? 0 : 1;
+  const [showGame, setShowGame] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
+    // Don't yank someone out of a run they're in the middle of — once
+    // they've actually started playing, the resume waits for them behind
+    // an explicit button instead of auto-advancing.
+    if (playing) return;
     // A short settle beat so the final checkmark is visible before moving
     // on — not a delay standing in for unfinished work, which has already
     // finished by the time `ready` flips true.
     const t = setTimeout(onDone, 400);
     return () => clearTimeout(t);
-  }, [ready, onDone]);
+  }, [ready, onDone, playing]);
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col items-center justify-center py-16 text-center">
-      <div className="animate-pulse">
+    <div
+      className={cn(
+        "mx-auto flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center py-16 text-center",
+        showGame ? "max-w-2xl" : "max-w-md"
+      )}
+    >
+      <div className={ready ? "" : "animate-pulse"}>
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-brand/20 bg-brand-muted text-brand">
           <Sparkles className="h-7 w-7" strokeWidth={1.75} />
         </span>
       </div>
 
       <h2 className="mt-6 font-serif text-2xl tracking-tight text-foreground">
-        Tailoring your resume
+        {ready ? "Your resume is ready" : "Tailoring your resume"}
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        {role
-          ? `Shaping everything toward "${role.length > 60 ? role.slice(0, 60) + "…" : role}".`
-          : "Structuring your profile into a resume."}
+        {ready
+          ? "Finish your run whenever you like — it'll be waiting."
+          : role
+            ? `Shaping everything toward "${role.length > 60 ? role.slice(0, 60) + "…" : role}".`
+            : "Structuring your profile into a resume."}
       </p>
 
-      <ul className="mt-8 flex w-full flex-col gap-2 text-left">
+      {/* Once the work is done and they're mid-game, this is the way out. */}
+      {ready && playing && (
+        <Button size="lg" onClick={onDone} className="mt-5 gap-2">
+          Continue to my resume
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      )}
+
+      <ul className="mt-8 flex w-full max-w-md flex-col gap-2 text-left">
         {TASKS.map((task, i) => {
           const done = ready || i < activeIndex;
           const running = !done && i === activeIndex;
@@ -95,6 +118,21 @@ export function ExtractionLoading({
           );
         })}
       </ul>
+
+      {/* Opt-in, so it never gets in the way of someone who just wants to wait. */}
+      {!showGame ? (
+        <button
+          onClick={() => setShowGame(true)}
+          className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand"
+        >
+          <Gamepad2 className="h-3.5 w-3.5" />
+          Got a second? Play while you wait
+        </button>
+      ) : (
+        <div className="mt-6 w-full">
+          <PauseRunGame onFirstStart={() => setPlaying(true)} />
+        </div>
+      )}
     </div>
   );
 }
