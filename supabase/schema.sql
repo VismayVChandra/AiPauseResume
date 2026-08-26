@@ -30,6 +30,7 @@ create table if not exists resumes (
   company_name text,                         -- optional, for the application tracker on My Resumes
   applied_at date,
   tracker_notes text,
+  persona_label text,                        -- optional user-given name for this variant (e.g. "IC Engineer" vs "Eng Manager"), distinct from target_role
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -44,6 +45,20 @@ create table if not exists resume_versions (
   resume_id uuid not null references resumes(id) on delete cascade,
   label text not null,                       -- e.g. 'Initial tailor', 'Before AI improvement'
   resume_json jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+-- One row per score-resume run for a given resume, so the score screen can
+-- chart whether edits are actually moving the needle over time instead of
+-- only ever comparing the immediate before/after of a single "Improve My
+-- Score" pass. Written on every successful score, not just improvements.
+create table if not exists score_history (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid not null references resumes(id) on delete cascade,
+  overall_score int not null,
+  ats_score int not null,
+  role_match_score int not null,
+  skills_match_score int not null,
   created_at timestamptz not null default now()
 );
 
@@ -94,6 +109,7 @@ create index if not exists idx_resumes_profile on resumes(career_profile_id);
 create index if not exists idx_resumes_session on resumes(session_id);
 create index if not exists idx_resumes_user on resumes(user_id);
 create index if not exists idx_resume_versions_resume on resume_versions(resume_id, created_at);
+create index if not exists idx_score_history_resume on score_history(resume_id, created_at);
 
 -- Auth is OPTIONAL by design — guests can build and download a resume with
 -- no account at all. Signing in is offered (never forced) as a way to save
@@ -112,6 +128,7 @@ alter table career_profiles enable row level security;
 alter table resumes enable row level security;
 alter table resume_versions enable row level security;
 alter table rate_limits enable row level security;
+alter table score_history enable row level security;
 
 -- Migrating an existing deployment? Run just this block against your
 -- existing tables (uuid-ossp/tables above are guarded with IF NOT EXISTS,
@@ -126,6 +143,7 @@ alter table rate_limits enable row level security;
 -- alter table resumes add column if not exists company_name text;
 -- alter table resumes add column if not exists applied_at date;
 -- alter table resumes add column if not exists tracker_notes text;
+-- alter table resumes add column if not exists persona_label text;
 -- update resumes r set session_id = cp.session_id
 --   from career_profiles cp where cp.id = r.career_profile_id and r.session_id is null;
 -- alter table resumes alter column session_id set not null;
@@ -183,3 +201,18 @@ alter table rate_limits enable row level security;
 --   return v_count <= p_limit;
 -- end;
 -- $$;
+-- grant select, insert, update on public.rate_limits to service_role;
+--
+-- Score history (see components/ScoreStep.tsx / app/api/resumes/[id]/score-history):
+-- create table if not exists score_history (
+--   id uuid primary key default uuid_generate_v4(),
+--   resume_id uuid not null references resumes(id) on delete cascade,
+--   overall_score int not null,
+--   ats_score int not null,
+--   role_match_score int not null,
+--   skills_match_score int not null,
+--   created_at timestamptz not null default now()
+-- );
+-- alter table score_history enable row level security;
+-- create index if not exists idx_score_history_resume on score_history(resume_id, created_at);
+-- grant select, insert on public.score_history to service_role;

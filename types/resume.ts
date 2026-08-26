@@ -221,6 +221,19 @@ export interface TimelineGap {
   months: number;
 }
 
+// One snapshot of ResumeScore's numbers, taken every time the resume is
+// scored — lets the score screen chart whether edits are actually moving
+// the needle over a series of runs, not just the immediate before/after
+// of a single "Improve My Score" pass.
+export interface ScoreHistoryEntry {
+  id: string;
+  overallScore: number;
+  atsScore: number;
+  roleMatchScore: number;
+  skillsMatchScore: number;
+  createdAt: string;
+}
+
 // Per-resume application-tracking metadata — user-entered, never touched
 // by the AI. Lives alongside resume_json in the resumes table.
 export type ApplicationStatus = "not_applied" | "applied" | "interviewing" | "offer" | "rejected";

@@ -18,6 +18,7 @@ export interface SavedResumeSummary {
   applicationStatus: string;
   companyName: string;
   appliedAt: string;
+  personaLabel: string;
 }
 
 const STATUS_TONE: Record<string, string> = {
@@ -68,6 +69,23 @@ export function MyResumesView({
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ companyName: companyName || null }),
+      });
+    } catch {
+      // best-effort
+    }
+  }
+
+  async function updatePersonaLabel(resumeId: string, personaLabel: string) {
+    setResumes((prev) =>
+      prev ? prev.map((r) => (r.resumeId === resumeId ? { ...r, personaLabel } : r)) : prev
+    );
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      await fetch(`/api/resumes/${resumeId}/tracker`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ personaLabel: personaLabel || null }),
       });
     } catch {
       // best-effort
@@ -142,8 +160,18 @@ export function MyResumesView({
               key={r.resumeId}
               className="flex flex-col items-start gap-1 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-brand/40 hover:shadow-sm"
             >
+              <input
+                type="text"
+                defaultValue={r.personaLabel}
+                onBlur={(e) => {
+                  if (e.target.value !== r.personaLabel) updatePersonaLabel(r.resumeId, e.target.value);
+                }}
+                placeholder={`Label this version (e.g. "IC track")`}
+                aria-label="Persona label"
+                className="w-full rounded-md bg-transparent px-0 py-0.5 text-sm font-semibold text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-brand/20"
+              />
               <button onClick={() => onOpen(r)} className="w-full text-left">
-                <span className="text-sm font-medium text-foreground">{r.fullName}</span>
+                <span className="text-xs text-muted-foreground">{r.fullName}</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
                   Targeting {r.targetRole || "—"}
                 </span>

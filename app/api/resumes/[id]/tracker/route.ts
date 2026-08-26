@@ -5,14 +5,15 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
-// Application-tracking metadata (status/company/date/notes) — separate
-// from the main resume PATCH since this is user-entered bookkeeping, not
-// part of the AI-validated TailoredResume shape.
+// Application-tracking metadata (status/company/date/notes/persona label)
+// — separate from the main resume PATCH since this is user-entered
+// bookkeeping, not part of the AI-validated TailoredResume shape.
 const BodySchema = z.object({
   status: z.enum(["not_applied", "applied", "interviewing", "offer", "rejected"]).optional(),
   companyName: z.string().max(200).nullable().optional(),
   appliedAt: z.string().nullable().optional(), // ISO date string, or null to clear
   notes: z.string().max(2000).nullable().optional(),
+  personaLabel: z.string().max(80).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -35,6 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (parsed.data.companyName !== undefined) update.company_name = parsed.data.companyName;
     if (parsed.data.appliedAt !== undefined) update.applied_at = parsed.data.appliedAt;
     if (parsed.data.notes !== undefined) update.tracker_notes = parsed.data.notes;
+    if (parsed.data.personaLabel !== undefined) update.persona_label = parsed.data.personaLabel;
 
     const supabase = supabaseServer();
     const { error } = await supabase.from("resumes").update(update).eq("id", params.id);

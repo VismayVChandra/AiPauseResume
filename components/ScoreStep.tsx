@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeywordMatchPanel } from "@/components/genforge/keyword-match-panel";
+import { ScoreHistoryChart } from "@/components/genforge/score-history-chart";
 import { cn } from "@/lib/utils";
 import { detectTimelineGaps } from "@/lib/timeline-gaps";
 import { getOrCreateSessionId, getAccessToken } from "@/lib/supabase";
@@ -254,6 +255,10 @@ export function ScoreStep({
   const [appliedSuggestions, setAppliedSuggestions] = useState<Set<number>>(new Set());
   const dirty = addedKeywords.length > 0 || appliedSuggestions.size > 0;
 
+  // Bumped after every successful score so ScoreHistoryChart knows to
+  // refetch — simpler than threading the new entry through as a prop.
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
   async function runScore(target: TailoredResume = resume) {
     setLoading(true);
     setError(null);
@@ -265,9 +270,34 @@ export function ScoreStep({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't score this resume.");
-      setScore(json.score as ResumeScore);
+      const nextScore = json.score as ResumeScore;
+      setScore(nextScore);
       setAddedKeywords([]);
       setAppliedSuggestions(new Set());
+
+      // Best-effort snapshot for the score-over-time chart — never blocks
+      // the score itself from showing if this fails.
+      if (resumeId) {
+        getAccessToken()
+          .then((token) =>
+            fetch(`/api/resumes/${resumeId}/score-history`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-session-id": getOrCreateSessionId(),
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                overallScore: nextScore.overallScore,
+                atsScore: nextScore.atsCompatibility.score,
+                roleMatchScore: nextScore.roleMatch.score,
+                skillsMatchScore: nextScore.skillsMatch.score,
+              }),
+            })
+          )
+          .then(() => setHistoryRefreshKey((k) => k + 1))
+          .catch(() => {});
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't score this resume.");
     } finally {
@@ -467,6 +497,10 @@ export function ScoreStep({
               </button>
             </div>
           )}
+
+          <div className="mt-6">
+            <ScoreHistoryChart resumeId={resumeId} refreshKey={historyRefreshKey} />
+          </div>
 
           {/* sub-scores */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
