@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Scissors,
   Layers,
+  Type,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoverLetterPanel } from "@/components/genforge/cover-letter-panel";
@@ -71,8 +72,8 @@ export function ExportStep({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState<number | null>(null);
-  const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null);
-  const [downloaded, setDownloaded] = useState<null | "pdf" | "docx">(null);
+  const [downloading, setDownloading] = useState<"pdf" | "docx" | "txt" | null>(null);
+  const [downloaded, setDownloaded] = useState<null | "pdf" | "docx" | "txt">(null);
   const [condensing, setCondensing] = useState(false);
   const [condenseError, setCondenseError] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
@@ -177,6 +178,25 @@ export function ExportStep({
       setDownloaded("docx");
     } catch {
       setPreviewError("Couldn't generate the DOCX. Try again.");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function handleDownloadTxt() {
+    setDownloading("txt");
+    try {
+      const res = await fetch("/api/export-txt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume }),
+      });
+      if (!res.ok) throw new Error("Export failed.");
+      const blob = await res.blob();
+      downloadBlob(blob, `${base}.txt`);
+      setDownloaded("txt");
+    } catch {
+      setPreviewError("Couldn't generate the plain-text export. Try again.");
     } finally {
       setDownloading(null);
     }
@@ -359,6 +379,29 @@ export function ExportStep({
                   <span className="block text-xs text-muted-foreground">Editable in Word</span>
                 </span>
                 {downloaded === "docx" ? (
+                  <Check className="h-4 w-4 text-brand" />
+                ) : (
+                  <Download className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+
+              <button
+                onClick={handleDownloadTxt}
+                disabled={downloading !== null}
+                className="group flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3 text-left transition-colors hover:bg-muted disabled:opacity-60"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                  <Type className="h-4.5 w-4.5" strokeWidth={2} />
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-medium text-foreground">
+                    {downloading === "txt" ? "Generating…" : "Download TXT"}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Plain text, for ATS paste boxes
+                  </span>
+                </span>
+                {downloaded === "txt" ? (
                   <Check className="h-4 w-4 text-brand" />
                 ) : (
                   <Download className="h-4 w-4 text-muted-foreground" />
