@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CoverLetterPanel } from "@/components/genforge/cover-letter-panel";
 import { ShareLinkPanel } from "@/components/genforge/share-link-panel";
+import { ResumeComments } from "@/components/genforge/resume-comments";
 import { LinkedInOptimizerPanel } from "@/components/genforge/linkedin-optimizer-panel";
 import { CoverLetter, TailoredResume, TEMPLATE_OPTIONS } from "@/types/resume";
 import { cn } from "@/lib/utils";
@@ -426,6 +427,8 @@ export function ExportStep({
           <LinkedInOptimizerPanel resume={resume} />
 
           <ShareLinkPanel resumeId={resumeId} />
+
+          <ResumeComments resumeId={resumeId} mode="owner" />
 
           {onTailorAnotherRole && (
             <button

@@ -1,9 +1,23 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { ResumePdfDocument } from "@/lib/pdf-template";
-import { TailoredResumeSchema } from "@/lib/schemas";
+import { TailoredResumeSchema, type CommentSection } from "@/lib/schemas";
 import { supabaseServer } from "@/lib/supabase";
 import { PauseResumeWordmark } from "@/components/genforge/logo";
+import { ResumeComments } from "@/components/genforge/resume-comments";
+import type { TailoredResume } from "@/types/resume";
+
+// Only "projects"/"certifications" are ever individually hidden (see
+// hiddenSections on TailoredResume) — summary/experience/education/skills
+// have no hide toggle and are always part of the resume. "general" is
+// always offered for overall feedback that isn't about one specific part.
+function availableCommentSections(resume: TailoredResume): CommentSection[] {
+  const hidden = new Set(resume.hiddenSections);
+  const sections: CommentSection[] = ["general", "summary", "experience", "education", "skills"];
+  if (resume.projects.length && !hidden.has("projects")) sections.push("projects");
+  if (resume.certifications.length && !hidden.has("certifications")) sections.push("certifications");
+  return sections;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // always reflects the resume's current is_public state
@@ -61,6 +75,14 @@ export default async function PublicResumePage({ params }: { params: { id: strin
             type="application/pdf"
             className="h-[85vh] w-full rounded-lg border border-border"
           />
+
+          <div className="mt-6">
+            <ResumeComments
+              resumeId={params.id}
+              mode="public"
+              availableSections={availableCommentSections(resume)}
+            />
+          </div>
         </div>
       </main>
     </div>

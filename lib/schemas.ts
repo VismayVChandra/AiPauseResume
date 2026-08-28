@@ -75,6 +75,36 @@ export const TailoredResumeSchema = z.object({
   photoDataUrl: z.string().max(500_000).optional(),
 });
 
+// Which part of the resume a reviewer comment is about. Mirrors
+// TailoredResume's own section fields, plus "general" for overall
+// feedback that isn't about one specific part.
+export const COMMENT_SECTIONS = [
+  "general",
+  "summary",
+  "experience",
+  "education",
+  "projects",
+  "skills",
+  "certifications",
+] as const;
+export type CommentSection = (typeof COMMENT_SECTIONS)[number];
+
+export const COMMENT_SECTION_LABELS: Record<CommentSection, string> = {
+  general: "Overall",
+  summary: "Summary",
+  experience: "Experience",
+  education: "Education",
+  projects: "Projects",
+  skills: "Skills",
+  certifications: "Certifications",
+};
+
+export const ResumeCommentBodySchema = z.object({
+  section: z.enum(COMMENT_SECTIONS),
+  commenterName: z.string().trim().min(1).max(60),
+  body: z.string().trim().min(1).max(2000),
+});
+
 export const InterviewQuestionSchema = z.object({
   question: z.string(),
   basedOn: z.string(),

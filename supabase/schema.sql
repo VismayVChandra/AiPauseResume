@@ -62,6 +62,24 @@ create table if not exists score_history (
   created_at timestamptz not null default now()
 );
 
+-- Reviewer/mentor comments on a resume, left from the read-only /r/[id]
+-- share page. Commenting requires the resume to be public (see is_public
+-- above); no login is required to leave one — a typed display name is
+-- all the identity there is, so there's no verification that a name
+-- actually belongs to whoever typed it. Only the resume's owner (via the
+-- same session_id/user_id check as every other resume-scoped route) can
+-- resolve or delete a comment; a commenter can't edit or remove their own
+-- after posting, since there's no reliable way to prove it was them.
+create table if not exists resume_comments (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid not null references resumes(id) on delete cascade,
+  section text not null,               -- 'general' | 'summary' | 'experience' | 'education' | 'projects' | 'skills'
+  commenter_name text not null,
+  body text not null,
+  resolved boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 -- Backs a simple fixed-window rate limit on the AI-calling API routes
 -- (see lib/rate-limit.ts) — keyed by caller IP, reset each window. Uses
 -- Supabase rather than a separate service (Redis/Upstash) since this app
@@ -110,6 +128,7 @@ create index if not exists idx_resumes_session on resumes(session_id);
 create index if not exists idx_resumes_user on resumes(user_id);
 create index if not exists idx_resume_versions_resume on resume_versions(resume_id, created_at);
 create index if not exists idx_score_history_resume on score_history(resume_id, created_at);
+create index if not exists idx_resume_comments_resume on resume_comments(resume_id, created_at);
 
 -- Auth is OPTIONAL by design — guests can build and download a resume with
 -- no account at all. Signing in is offered (never forced) as a way to save
@@ -129,6 +148,7 @@ alter table resumes enable row level security;
 alter table resume_versions enable row level security;
 alter table rate_limits enable row level security;
 alter table score_history enable row level security;
+alter table resume_comments enable row level security;
 
 -- Migrating an existing deployment? Run just this block against your
 -- existing tables (uuid-ossp/tables above are guarded with IF NOT EXISTS,
@@ -216,3 +236,18 @@ alter table score_history enable row level security;
 -- alter table score_history enable row level security;
 -- create index if not exists idx_score_history_resume on score_history(resume_id, created_at);
 -- grant select, insert on public.score_history to service_role;
+--
+-- Reviewer/mentor comments (see app/api/resumes/[id]/comments and
+-- components/genforge/resume-comments.tsx):
+-- create table if not exists resume_comments (
+--   id uuid primary key default uuid_generate_v4(),
+--   resume_id uuid not null references resumes(id) on delete cascade,
+--   section text not null,
+--   commenter_name text not null,
+--   body text not null,
+--   resolved boolean not null default false,
+--   created_at timestamptz not null default now()
+-- );
+-- alter table resume_comments enable row level security;
+-- create index if not exists idx_resume_comments_resume on resume_comments(resume_id, created_at);
+-- grant select, insert, update, delete on public.resume_comments to service_role;
