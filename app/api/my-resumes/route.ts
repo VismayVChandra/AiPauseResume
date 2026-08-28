@@ -45,10 +45,32 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Best-effort: how many open (unresolved) reviewer comments each resume
+    // has, so My Resumes can badge "there's feedback waiting on this one."
+    // resume_comments is a newer table some deployments haven't migrated
+    // yet — a failure here shouldn't take down the whole list, it just
+    // means every count comes back 0.
+    const resumeIds = (data || []).map((row) => row.id as string);
+    const unresolvedCounts: Record<string, number> = {};
+    if (resumeIds.length > 0) {
+      const { data: openComments, error: commentsError } = await supabase
+        .from("resume_comments")
+        .select("resume_id")
+        .in("resume_id", resumeIds)
+        .eq("resolved", false);
+      if (!commentsError) {
+        for (const row of openComments || []) {
+          const id = row.resume_id as string;
+          unresolvedCounts[id] = (unresolvedCounts[id] || 0) + 1;
+        }
+      }
+    }
+
     const resumes = (data || []).map((row) => {
       const resume = row.resume_json as TailoredResume;
+      const id = row.id as string;
       return {
-        resumeId: row.id as string,
+        resumeId: id,
         careerProfileId: row.career_profile_id as string,
         targetRole: (row.target_role as string) || resume.targetRole,
         fullName: resume.fullName,
@@ -59,6 +81,7 @@ export async function GET(req: NextRequest) {
         companyName: (row.company_name as string) || "",
         appliedAt: (row.applied_at as string) || "",
         personaLabel: (row.persona_label as string) || "",
+        unresolvedCommentCount: unresolvedCounts[id] || 0,
       };
     });
 

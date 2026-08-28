@@ -1,11 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Plus, FileText, Loader2, Repeat, Tag, Globe, Search } from "lucide-react";
+import {
+  ArrowRight,
+  Plus,
+  FileText,
+  Loader2,
+  Repeat,
+  Tag,
+  Globe,
+  Search,
+  BellRing,
+  MessageSquare,
+  Scale,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAccessToken } from "@/lib/supabase";
 import { APPLICATION_STATUS_OPTIONS, ApplicationStatus } from "@/types/resume";
 import { cn } from "@/lib/utils";
+import { ResumeCompare } from "@/components/genforge/resume-compare";
 
 export interface SavedResumeSummary {
   resumeId: string;
@@ -19,6 +32,26 @@ export interface SavedResumeSummary {
   companyName: string;
   appliedAt: string;
   personaLabel: string;
+  unresolvedCommentCount: number;
+}
+
+// A resume nudges "follow up" once it's sat in "applied" for a while with
+// no movement — the one part of the actual job-search loop (not just the
+// resume-building loop) the tracker didn't previously surface at all.
+const FOLLOW_UP_AFTER_DAYS = 7;
+
+function daysSince(iso: string): number | null {
+  if (!iso) return null;
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return null;
+  return Math.floor((Date.now() - then.getTime()) / 86_400_000);
+}
+
+function needsFollowUp(r: Pick<SavedResumeSummary, "applicationStatus" | "appliedAt">): number | null {
+  if (r.applicationStatus !== "applied") return null;
+  const days = daysSince(r.appliedAt);
+  if (days === null || days < FOLLOW_UP_AFTER_DAYS) return null;
+  return days;
 }
 
 // One tone per status, used consistently across the filter chips, the
@@ -78,6 +111,22 @@ export function MyResumesView({
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
+  const [comparing, setComparing] = useState<[string, string] | null>(null);
+
+  function toggleCompareMode() {
+    setCompareMode((v) => !v);
+    setSelectedForCompare([]);
+  }
+
+  function toggleSelected(resumeId: string) {
+    setSelectedForCompare((prev) => {
+      if (prev.includes(resumeId)) return prev.filter((id) => id !== resumeId);
+      if (prev.length >= 2) return [prev[1], resumeId];
+      return [...prev, resumeId];
+    });
+  }
 
   async function patchTracker(resumeId: string, body: Record<string, unknown>) {
     try {
@@ -100,8 +149,15 @@ export function MyResumesView({
   }
 
   function updateStatus(resumeId: string, status: ApplicationStatus) {
-    patchLocal(resumeId, { applicationStatus: status });
-    patchTracker(resumeId, { status });
+    // First move into "applied" starts the follow-up clock automatically —
+    // asking the user to separately pick a date they already just implied
+    // by changing the status would be one more field nobody fills in.
+    const current = resumes?.find((r) => r.resumeId === resumeId);
+    const shouldStampAppliedAt = status === "applied" && current && !current.appliedAt;
+    const appliedAt = shouldStampAppliedAt ? new Date().toISOString().slice(0, 10) : undefined;
+
+    patchLocal(resumeId, { applicationStatus: status, ...(appliedAt ? { appliedAt } : {}) });
+    patchTracker(resumeId, { status, ...(appliedAt ? { appliedAt } : {}) });
   }
 
   function updateCompany(resumeId: string, companyName: string) {
@@ -168,11 +224,41 @@ export function MyResumesView({
               : "Every version you've saved, tailored to a different role."}
           </p>
         </div>
-        <Button size="lg" onClick={onNew} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New resume
-        </Button>
+        <div className="flex items-center gap-2">
+          {hasAny && (
+            <Button
+              variant={compareMode ? "default" : "outline"}
+              size="lg"
+              onClick={toggleCompareMode}
+              className="gap-2"
+            >
+              <Scale className="h-4 w-4" />
+              {compareMode ? "Cancel compare" : "Compare"}
+            </Button>
+          )}
+          <Button size="lg" onClick={onNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New resume
+          </Button>
+        </div>
       </div>
+
+      {compareMode && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-brand/30 bg-brand-muted/30 px-3 py-2 text-xs text-brand">
+          <Scale className="h-3.5 w-3.5 shrink-0" />
+          {selectedForCompare.length < 2
+            ? `Pick ${2 - selectedForCompare.length} more resume${selectedForCompare.length === 1 ? "" : "s"} to compare.`
+            : "Two selected."}
+          {selectedForCompare.length === 2 && (
+            <button
+              onClick={() => setComparing([selectedForCompare[0], selectedForCompare[1]])}
+              className="ml-auto rounded-md bg-brand px-2.5 py-1 text-[11px] font-medium text-brand-foreground transition-colors hover:bg-brand/90"
+            >
+              Compare these two
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="mt-6 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -247,10 +333,15 @@ export function MyResumesView({
             <ul className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {visible.map((r) => {
                 const tone = toneFor(r.applicationStatus);
+                const followUpDays = needsFollowUp(r);
+                const selected = selectedForCompare.includes(r.resumeId);
                 return (
                   <li
                     key={r.resumeId}
-                    className="group relative overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md"
+                    className={cn(
+                      "group relative overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md",
+                      selected && "border-brand ring-2 ring-brand/25"
+                    )}
                   >
                     {/* status accent stripe — scannable down the column */}
                     <span
@@ -259,13 +350,33 @@ export function MyResumesView({
                     />
 
                     <div className="flex flex-col gap-3 py-4 pl-6 pr-4">
-                      {/* row 1: persona label + template/public */}
+                      {/* row 1: persona label + template/public/feedback */}
                       <div className="flex items-start justify-between gap-2">
-                        <PersonaLabel
-                          value={r.personaLabel}
-                          onSave={(v) => updatePersonaLabel(r.resumeId, v)}
-                        />
+                        <div className="flex min-w-0 items-center gap-2">
+                          {compareMode && (
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleSelected(r.resumeId)}
+                              aria-label="Select for comparison"
+                              className="h-4 w-4 shrink-0 cursor-pointer accent-brand"
+                            />
+                          )}
+                          <PersonaLabel
+                            value={r.personaLabel}
+                            onSave={(v) => updatePersonaLabel(r.resumeId, v)}
+                          />
+                        </div>
                         <div className="flex shrink-0 items-center gap-1.5">
+                          {r.unresolvedCommentCount > 0 && (
+                            <span
+                              title={`${r.unresolvedCommentCount} unresolved comment${r.unresolvedCommentCount === 1 ? "" : "s"}`}
+                              className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+                            >
+                              <MessageSquare className="h-2.5 w-2.5" />
+                              {r.unresolvedCommentCount}
+                            </span>
+                          )}
                           {r.isPublic && (
                             <span
                               title="Shared via link"
@@ -290,6 +401,13 @@ export function MyResumesView({
                           {r.fullName} · updated {formatUpdated(r.updatedAt)}
                         </span>
                       </button>
+
+                      {followUpDays !== null && (
+                        <div className="flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-800">
+                          <BellRing className="h-3 w-3 shrink-0" />
+                          Applied {followUpDays} days ago — maybe follow up.
+                        </div>
+                      )}
 
                       {/* row 3: tracker */}
                       <div className="flex flex-wrap items-center gap-2">
@@ -349,6 +467,18 @@ export function MyResumesView({
             </ul>
           )}
         </>
+      )}
+
+      {comparing && (
+        <ResumeCompare
+          resumeAId={comparing[0]}
+          resumeBId={comparing[1]}
+          onClose={() => {
+            setComparing(null);
+            setSelectedForCompare([]);
+            setCompareMode(false);
+          }}
+        />
       )}
     </div>
   );
