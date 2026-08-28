@@ -14,7 +14,10 @@ export function PauseResumeMark({ className }: { className?: string }) {
     >
       <rect width="32" height="32" rx="8" fill="var(--brand)" />
       <rect x="9" y="9.5" width="5" height="13" rx="2.2" fill="var(--brand-foreground)" />
-      <polygon points="18,9.5 18,22.5 27,16" fill="var(--brand-foreground)" />
+      <path
+        d="M18,11.5 L18,20.5 Q18,22.5 19.62,21.33 L25.38,17.17 Q27,16 25.38,14.83 L19.62,10.67 Q18,9.5 18,11.5 Z"
+        fill="var(--brand-foreground)"
+      />
     </svg>
   );
 }
