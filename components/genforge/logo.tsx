@@ -13,9 +13,9 @@ export function PauseResumeMark({ className }: { className?: string }) {
       className={cn("h-6 w-6", className)}
     >
       <rect width="32" height="32" rx="8" fill="var(--brand)" />
-      <rect x="9" y="9.5" width="5" height="13" rx="2.2" fill="var(--brand-foreground)" />
+      <rect x="7.5" y="9.5" width="7" height="13" rx="3" fill="var(--brand-foreground)" />
       <path
-        d="M18,11.5 L18,20.5 Q18,22.5 19.62,21.33 L25.38,17.17 Q27,16 25.38,14.83 L19.62,10.67 Q18,9.5 18,11.5 Z"
+        d="M17.5,12.5 L17.5,19.5 Q17.5,22.5 19.7,20.46 L22.3,18.04 Q24.5,16 22.3,13.96 L19.7,11.54 Q17.5,9.5 17.5,12.5 Z"
         fill="var(--brand-foreground)"
       />
     </svg>
