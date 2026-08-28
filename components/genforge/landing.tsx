@@ -6,6 +6,7 @@ import { PauseResumeMark, LinkedInGlyph } from "@/components/genforge/logo";
 import { PauseRunGame } from "@/components/genforge/pause-run-game";
 import { FreezeDodgeGame } from "@/components/genforge/freeze-dodge-game";
 import { StackResumeGame } from "@/components/genforge/stack-resume-game";
+import { SplitSelfGame } from "@/components/genforge/split-self-game";
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
@@ -121,6 +122,19 @@ export function Landing({ onStart }: { onStart: () => void }) {
         </p>
         <div className="mt-6">
           <StackResumeGame />
+        </div>
+
+        <p className="mt-8 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          And a fourth, where Pause builds the ground under you
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          The others freeze the world around you. This one freezes <em>you</em> — mid-jump,
+          mid-air, wherever — into a solid stepping stone. Some gaps are too wide to clear in one
+          jump; the only way across is to jump, Pause partway over the gap, then Resume and jump
+          again from the platform you just left behind.
+        </p>
+        <div className="mt-6">
+          <SplitSelfGame />
         </div>
       </div>
     </div>
