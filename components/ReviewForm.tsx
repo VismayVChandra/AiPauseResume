@@ -156,7 +156,7 @@ export function ReviewForm({
       </div>
 
       {/* the sheet */}
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-paper shadow-[0_20px_60px_-30px_oklch(0.24_0.012_255/0.3)]">
+      <div className="paper-surface mt-6 overflow-hidden rounded-2xl border border-border bg-paper shadow-[0_20px_60px_-30px_oklch(0.24_0.012_255/0.3)]">
         <header className="border-b border-border/70 bg-card/40 px-6 py-6 sm:px-8">
           <div className="flex items-start gap-4">
             <PhotoUpload

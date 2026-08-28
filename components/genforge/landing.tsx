@@ -174,7 +174,7 @@ function DocumentHero() {
       <div className="absolute inset-x-4 -bottom-3 top-4 rounded-lg bg-paper-edge/40 blur-sm" />
       <div className="absolute inset-x-2 -bottom-1.5 top-2 rounded-lg border border-border bg-card" />
 
-      <div className="relative overflow-hidden rounded-lg border border-border bg-paper p-7 shadow-[0_20px_50px_-20px_oklch(0.24_0.012_255/0.25)]">
+      <div className="paper-surface relative overflow-hidden rounded-lg border border-border bg-paper p-7 shadow-[0_20px_50px_-20px_oklch(0.24_0.012_255/0.25)]">
         <PauseResumeMark className="absolute right-5 top-5 h-6 w-6 opacity-80" />
 
         <div>

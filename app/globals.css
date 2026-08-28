@@ -98,6 +98,39 @@
   --linkedin-muted-raw: 0.26 0.035 245;
 }
 
+/* A light-mode sandbox for anything meant to look like an actual printed
+ * resume regardless of site theme — the DocumentHero mockup, the review-
+ * screen preview sheet, the export preview. --paper/--paper-edge already
+ * stay light in dark mode (see above), but everything rendered ON that
+ * paper (name, section labels, score badge, bullet bars — all via the
+ * ordinary text-foreground/text-muted-foreground/bg-brand-muted utilities)
+ * would otherwise inherit dark mode's inverted values and go illegible on
+ * a background that never actually went dark. Apply this class to the
+ * outermost `bg-paper`/`bg-paper-edge` wrapper; every Tailwind color
+ * utility inside reads these -raw variables directly (see tailwind.config.ts),
+ * so nested content is fixed automatically — no other component changes
+ * needed. */
+.paper-surface {
+  color-scheme: light;
+  --background-raw: 0.981 0.006 83;
+  --foreground-raw: 0.24 0.012 255;
+  --card-raw: 0.997 0.002 83;
+  --card-foreground-raw: 0.24 0.012 255;
+  --primary-raw: 0.26 0.014 255;
+  --primary-foreground-raw: 0.985 0.005 83;
+  --muted-raw: 0.955 0.007 83;
+  --muted-foreground-raw: 0.505 0.012 255;
+  --destructive-raw: 0.55 0.2 27;
+  --destructive-foreground-raw: 0.985 0.005 83;
+  --border-raw: 0.9 0.008 83;
+  --ring-raw: 0.52 0.09 168;
+  --brand-raw: 0.5 0.088 168;
+  --brand-foreground-raw: 0.985 0.005 83;
+  --brand-muted-raw: 0.93 0.03 168;
+  --linkedin-raw: 0.5 0.06 245;
+  --linkedin-muted-raw: 0.93 0.025 245;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);

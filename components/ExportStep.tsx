@@ -232,7 +232,7 @@ export function ExportStep({
               </span>
             </div>
           )}
-          <div className="overflow-hidden rounded-2xl border border-border bg-paper-edge/30 p-3 sm:p-4">
+          <div className="paper-surface overflow-hidden rounded-2xl border border-border bg-paper-edge/30 p-3 sm:p-4">
             {previewLoading && (
               <div className="flex h-[600px] items-center justify-center text-sm text-muted-foreground">
                 Generating preview…
