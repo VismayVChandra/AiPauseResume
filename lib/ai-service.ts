@@ -58,6 +58,31 @@ function isRetryableError(err: unknown): boolean {
   );
 }
 
+// The @google/genai SDK surfaces a failed API call by putting the raw HTTP
+// response body straight into Error.message — often literal upstream JSON
+// like {"error":{"code":403,"message":"...","status":"PERMISSION_DENIED"}}.
+// That's a real, fixable bug on its own regardless of what's causing any
+// particular failure: an API-route catch block that does
+// `err instanceof Error ? err.message : ...` and returns it to the client
+// ends up rendering raw JSON in the UI. Every AI call goes through
+// callStrictJson, so this is the one place that needs to translate it.
+function toSafeAiErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/PERMISSION_DENIED|"code"\s*:\s*40[13]|UNAUTHENTICATED/i.test(raw)) {
+    return "The AI service rejected this request — this is a configuration issue on our end, not something you did. Please try again later.";
+  }
+  if (/RESOURCE_EXHAUSTED|"code"\s*:\s*429|rate.?limit/i.test(raw)) {
+    return "The AI service is temporarily rate-limited — please try again in a moment.";
+  }
+  if (/UNAVAILABLE|"code"\s*:\s*5\d\d/i.test(raw)) {
+    return "The AI service is temporarily unavailable — please try again in a moment.";
+  }
+  if (raw.trim().startsWith("{")) {
+    return "The AI service returned an unexpected error — please try again.";
+  }
+  return raw;
+}
+
 async function callStrictJson(system: string, user: string): Promise<unknown> {
   const client = getClient();
   let lastError: unknown;
@@ -81,11 +106,15 @@ async function callStrictJson(system: string, user: string): Promise<unknown> {
       return extractJson(text);
     } catch (err) {
       lastError = err;
-      if (attempt === MAX_RETRIES || !isRetryableError(err)) throw err;
+      if (attempt === MAX_RETRIES || !isRetryableError(err)) {
+        console.error("Gemini call failed:", err);
+        throw new Error(toSafeAiErrorMessage(err));
+      }
       await sleep(RETRY_BASE_DELAY_MS * 2 ** attempt);
     }
   }
-  throw lastError;
+  console.error("Gemini call failed after retries:", lastError);
+  throw new Error(toSafeAiErrorMessage(lastError));
 }
 
 const EXTRACT_SYSTEM_PROMPT = `You extract structured career data from a person's LinkedIn export or pasted profile text.
