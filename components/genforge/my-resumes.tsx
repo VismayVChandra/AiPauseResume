@@ -13,12 +13,15 @@ import {
   BellRing,
   MessageSquare,
   Scale,
+  Clock,
+  CheckSquare,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAccessToken } from "@/lib/supabase";
 import { APPLICATION_STATUS_OPTIONS, ApplicationStatus } from "@/types/resume";
 import { cn } from "@/lib/utils";
-import { ResumeCompare } from "@/components/genforge/resume-compare";
+import { ResumeCompare, type CompareSpec } from "@/components/genforge/resume-compare";
 
 export interface SavedResumeSummary {
   resumeId: string;
@@ -51,6 +54,19 @@ function needsFollowUp(r: Pick<SavedResumeSummary, "applicationStatus" | "applie
   if (r.applicationStatus !== "applied") return null;
   const days = daysSince(r.appliedAt);
   if (days === null || days < FOLLOW_UP_AFTER_DAYS) return null;
+  return days;
+}
+
+// A separate, quieter nudge for the opposite problem: a resume that was
+// built and then never touched again. Only fires for "not_applied" —
+// once something's actually in motion (applied/interviewing/etc.) its
+// age isn't the interesting signal anymore, needsFollowUp covers that.
+const STALE_AFTER_DAYS = 60;
+
+function needsRefresh(r: Pick<SavedResumeSummary, "applicationStatus" | "updatedAt">): number | null {
+  if (r.applicationStatus !== "not_applied") return null;
+  const days = daysSince(r.updatedAt);
+  if (days === null || days < STALE_AFTER_DAYS) return null;
   return days;
 }
 
@@ -113,10 +129,22 @@ export function MyResumesView({
   const [query, setQuery] = useState("");
   const [compareMode, setCompareMode] = useState(false);
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
-  const [comparing, setComparing] = useState<[string, string] | null>(null);
+  const [comparing, setComparing] = useState<[CompareSpec, CompareSpec] | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedForDelete, setSelectedForDelete] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   function toggleCompareMode() {
     setCompareMode((v) => !v);
+    setSelectedForCompare([]);
+    setSelectMode(false);
+    setSelectedForDelete([]);
+  }
+
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelectedForDelete([]);
+    setCompareMode(false);
     setSelectedForCompare([]);
   }
 
@@ -126,6 +154,33 @@ export function MyResumesView({
       if (prev.length >= 2) return [prev[1], resumeId];
       return [...prev, resumeId];
     });
+  }
+
+  function toggleSelectedForDelete(resumeId: string) {
+    setSelectedForDelete((prev) =>
+      prev.includes(resumeId) ? prev.filter((id) => id !== resumeId) : [...prev, resumeId]
+    );
+  }
+
+  async function deleteSelected() {
+    const ids = selectedForDelete;
+    if (ids.length === 0) return;
+    const label = ids.length === 1 ? "this resume" : `these ${ids.length} resumes`;
+    if (!window.confirm(`Delete ${label}? This can't be undone.`)) return;
+
+    setDeleting(true);
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      await Promise.all(ids.map((id) => fetch(`/api/resumes/${id}`, { method: "DELETE", headers })));
+      setResumes((prev) => (prev ? prev.filter((r) => !ids.includes(r.resumeId)) : prev));
+      setSelectedForDelete([]);
+      setSelectMode(false);
+    } catch {
+      setError("Couldn't delete one or more resumes — try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function patchTracker(resumeId: string, body: Record<string, unknown>) {
@@ -236,6 +291,17 @@ export function MyResumesView({
               {compareMode ? "Cancel compare" : "Compare"}
             </Button>
           )}
+          {hasAny && (
+            <Button
+              variant={selectMode ? "default" : "outline"}
+              size="lg"
+              onClick={toggleSelectMode}
+              className="gap-2"
+            >
+              <CheckSquare className="h-4 w-4" />
+              {selectMode ? "Cancel select" : "Select"}
+            </Button>
+          )}
           <Button size="lg" onClick={onNew} className="gap-2">
             <Plus className="h-4 w-4" />
             New resume
@@ -251,10 +317,33 @@ export function MyResumesView({
             : "Two selected."}
           {selectedForCompare.length === 2 && (
             <button
-              onClick={() => setComparing([selectedForCompare[0], selectedForCompare[1]])}
+              onClick={() =>
+                setComparing([
+                  { kind: "live", resumeId: selectedForCompare[0] },
+                  { kind: "live", resumeId: selectedForCompare[1] },
+                ])
+              }
               className="ml-auto rounded-md bg-brand px-2.5 py-1 text-[11px] font-medium text-brand-foreground transition-colors hover:bg-brand/90"
             >
               Compare these two
+            </button>
+          )}
+        </div>
+      )}
+
+      {selectMode && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <Trash2 className="h-3.5 w-3.5 shrink-0" />
+          {selectedForDelete.length === 0
+            ? "Tap resumes to select them for deletion."
+            : `${selectedForDelete.length} selected.`}
+          {selectedForDelete.length > 0 && (
+            <button
+              onClick={deleteSelected}
+              disabled={deleting}
+              className="ml-auto rounded-md bg-destructive px-2.5 py-1 text-[11px] font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : `Delete ${selectedForDelete.length}`}
             </button>
           )}
         </div>
@@ -334,13 +423,16 @@ export function MyResumesView({
               {visible.map((r) => {
                 const tone = toneFor(r.applicationStatus);
                 const followUpDays = needsFollowUp(r);
+                const staleDays = needsRefresh(r);
                 const selected = selectedForCompare.includes(r.resumeId);
+                const selectedDelete = selectedForDelete.includes(r.resumeId);
                 return (
                   <li
                     key={r.resumeId}
                     className={cn(
                       "group relative overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md",
-                      selected && "border-brand ring-2 ring-brand/25"
+                      selected && "border-brand ring-2 ring-brand/25",
+                      selectedDelete && "border-destructive ring-2 ring-destructive/25"
                     )}
                   >
                     {/* status accent stripe — scannable down the column */}
@@ -360,6 +452,15 @@ export function MyResumesView({
                               onChange={() => toggleSelected(r.resumeId)}
                               aria-label="Select for comparison"
                               className="h-4 w-4 shrink-0 cursor-pointer accent-brand"
+                            />
+                          )}
+                          {selectMode && (
+                            <input
+                              type="checkbox"
+                              checked={selectedDelete}
+                              onChange={() => toggleSelectedForDelete(r.resumeId)}
+                              aria-label="Select for deletion"
+                              className="h-4 w-4 shrink-0 cursor-pointer accent-destructive"
                             />
                           )}
                           <PersonaLabel
@@ -406,6 +507,13 @@ export function MyResumesView({
                         <div className="flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-800">
                           <BellRing className="h-3 w-3 shrink-0" />
                           Applied {followUpDays} days ago — maybe follow up.
+                        </div>
+                      )}
+
+                      {staleDays !== null && (
+                        <div className="flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          Untouched for {staleDays} days — still worth applying?
                         </div>
                       )}
 
@@ -471,8 +579,8 @@ export function MyResumesView({
 
       {comparing && (
         <ResumeCompare
-          resumeAId={comparing[0]}
-          resumeBId={comparing[1]}
+          sideA={comparing[0]}
+          sideB={comparing[1]}
           onClose={() => {
             setComparing(null);
             setSelectedForCompare([]);

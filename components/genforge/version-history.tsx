@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { History, Loader2, RotateCcw } from "lucide-react";
+import { History, Loader2, RotateCcw, Scale } from "lucide-react";
 import { ResumeVersion, TailoredResume } from "@/types/resume";
 import { getOrCreateSessionId, getAccessToken } from "@/lib/supabase";
+import { ResumeCompare, type CompareSpec } from "@/components/genforge/resume-compare";
 
 // Lists checkpoint snapshots for the current resume (initial tailor, right
 // before each AI improvement) and lets the user jump back to one. Loaded
@@ -19,6 +20,16 @@ export function VersionHistory({
   const [versions, setVersions] = useState<ResumeVersion[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [comparing, setComparing] = useState<{ sideA: CompareSpec; sideB: CompareSpec } | null>(null);
+
+  function compareWithCurrent(v: ResumeVersion) {
+    if (!resumeId) return;
+    setComparing({
+      sideA: { kind: "live", resumeId },
+      sideB: { kind: "version", resume: v.resume, label: v.label, createdAt: v.createdAt },
+    });
+    setOpen(false);
+  }
 
   async function toggle() {
     if (open) {
@@ -74,13 +85,13 @@ export function VersionHistory({
           {versions && versions.length > 0 && (
             <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
               {versions.map((v) => (
-                <li key={v.id}>
+                <li key={v.id} className="flex items-center gap-1 rounded-lg hover:bg-muted">
                   <button
                     onClick={() => {
                       onRestore(v.resume);
                       setOpen(false);
                     }}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-xs transition-colors hover:bg-muted"
+                    className="flex flex-1 items-center justify-between gap-2 px-2 py-2 text-left text-xs"
                   >
                     <span>
                       <span className="block font-medium text-foreground">{v.label}</span>
@@ -90,11 +101,27 @@ export function VersionHistory({
                     </span>
                     <RotateCcw className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </button>
+                  <button
+                    onClick={() => compareWithCurrent(v)}
+                    title="Compare with the current version"
+                    aria-label="Compare with the current version"
+                    className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-brand"
+                  >
+                    <Scale className="h-3.5 w-3.5" />
+                  </button>
                 </li>
               ))}
             </ul>
           )}
         </div>
+      )}
+
+      {comparing && (
+        <ResumeCompare
+          sideA={comparing.sideA}
+          sideB={comparing.sideB}
+          onClose={() => setComparing(null)}
+        />
       )}
     </div>
   );

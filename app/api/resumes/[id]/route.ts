@@ -60,6 +60,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
+// Deletes the resume outright. resume_versions, score_history, and
+// resume_comments all reference resumes(id) on delete cascade (see
+// supabase/schema.sql), so this is the only query needed — nothing else
+// to clean up separately.
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    if (!(await verifyResumeAccess(req, params.id))) {
+      return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+    }
+
+    const supabase = supabaseServer();
+    const { error } = await supabase.from("resumes").delete().eq("id", params.id);
+
+    if (error) {
+      console.error("resume delete error:", error);
+      return NextResponse.json({ error: "Failed to delete resume." }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("resume delete error:", err);
+    return NextResponse.json({ error: "Failed to delete resume." }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   if (!(await verifyResumeAccess(req, params.id))) {
     return NextResponse.json({ error: "Resume not found." }, { status: 404 });

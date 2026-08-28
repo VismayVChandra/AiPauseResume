@@ -13,9 +13,18 @@ async function resumeAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+// A side is either a live saved resume (fetched fresh, with its latest
+// score) or an already-in-memory version snapshot (version_history keeps
+// no score of its own — snapshots were never independently scored, only
+// the live resume is).
+export type CompareSpec =
+  | { kind: "live"; resumeId: string }
+  | { kind: "version"; resume: TailoredResume; label: string; createdAt: string };
+
 interface Side {
   resume: TailoredResume;
   latestScore: ScoreHistoryEntry | null;
+  subtitle: string;
 }
 
 // Not a text diff — the share page renders resumes as PDFs, and word-level
@@ -63,12 +72,12 @@ function Row({
 }
 
 export function ResumeCompare({
-  resumeAId,
-  resumeBId,
+  sideA,
+  sideB,
   onClose,
 }: {
-  resumeAId: string;
-  resumeBId: string;
+  sideA: CompareSpec;
+  sideB: CompareSpec;
   onClose: () => void;
 }) {
   const [a, setA] = useState<Side | null>(null);
@@ -77,24 +86,35 @@ export function ResumeCompare({
 
   useEffect(() => {
     let cancelled = false;
-    async function loadSide(id: string): Promise<Side> {
+    async function loadSide(spec: CompareSpec): Promise<Side> {
+      if (spec.kind === "version") {
+        return {
+          resume: spec.resume,
+          latestScore: null,
+          subtitle: `${spec.label} · ${new Date(spec.createdAt).toLocaleDateString()}`,
+        };
+      }
       const headers = await resumeAuthHeaders();
       const [resumeRes, scoreRes] = await Promise.all([
-        fetch(`/api/resumes/${id}`, { headers }),
-        fetch(`/api/resumes/${id}/score-history`, { headers }),
+        fetch(`/api/resumes/${spec.resumeId}`, { headers }),
+        fetch(`/api/resumes/${spec.resumeId}/score-history`, { headers }),
       ]);
       const resumeJson = await resumeRes.json();
       if (!resumeRes.ok) throw new Error(resumeJson.error || "Couldn't load one of the resumes.");
       const scoreJson = await scoreRes.json();
       const entries: ScoreHistoryEntry[] = scoreRes.ok ? scoreJson.entries || [] : [];
-      return { resume: resumeJson.resume, latestScore: entries.length ? entries[entries.length - 1] : null };
+      return {
+        resume: resumeJson.resume,
+        latestScore: entries.length ? entries[entries.length - 1] : null,
+        subtitle: resumeJson.resume.fullName,
+      };
     }
     (async () => {
       try {
-        const [sideA, sideB] = await Promise.all([loadSide(resumeAId), loadSide(resumeBId)]);
+        const [loadedA, loadedB] = await Promise.all([loadSide(sideA), loadSide(sideB)]);
         if (cancelled) return;
-        setA(sideA);
-        setB(sideB);
+        setA(loadedA);
+        setB(loadedB);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Couldn't load these resumes.");
       }
@@ -102,7 +122,7 @@ export function ResumeCompare({
     return () => {
       cancelled = true;
     };
-  }, [resumeAId, resumeBId]);
+  }, [sideA, sideB]);
 
   const loading = !a || !b;
 
@@ -144,12 +164,12 @@ export function ResumeCompare({
             <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
               <div className="text-right">
                 <p className="text-sm font-medium text-foreground">{a.resume.targetRole || "Untitled role"}</p>
-                <p className="text-xs text-muted-foreground">{a.resume.fullName}</p>
+                <p className="text-xs text-muted-foreground">{a.subtitle}</p>
               </div>
               <span className="pt-0.5 text-[11px] text-muted-foreground">vs</span>
               <div className="text-left">
                 <p className="text-sm font-medium text-foreground">{b.resume.targetRole || "Untitled role"}</p>
-                <p className="text-xs text-muted-foreground">{b.resume.fullName}</p>
+                <p className="text-xs text-muted-foreground">{b.subtitle}</p>
               </div>
             </div>
 
@@ -164,7 +184,9 @@ export function ResumeCompare({
             {!a.latestScore && !b.latestScore && (
               <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Minus className="h-3 w-3" />
-                Neither has been scored yet.
+                {sideA.kind === "version" || sideB.kind === "version"
+                  ? "No score to compare — version snapshots aren't scored on their own."
+                  : "Neither has been scored yet."}
               </p>
             )}
 
