@@ -4,6 +4,7 @@ import { Gamepad2, ArrowRight, Sparkles, FileText, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PauseResumeMark, LinkedInGlyph } from "@/components/genforge/logo";
 import { PauseRunGame } from "@/components/genforge/pause-run-game";
+import { FreezeDodgeGame } from "@/components/genforge/freeze-dodge-game";
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
@@ -97,6 +98,17 @@ export function Landing({ onStart }: { onStart: () => void }) {
         </p>
         <div className="mt-6">
           <PauseRunGame />
+        </div>
+
+        <p className="mt-8 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          And a second one, where Pause actually matters
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Here Pause freezes every moving gate mid-swing so you can line up a safe crossing with
+          no time pressure — Resume, and it all starts moving again from right where it froze.
+        </p>
+        <div className="mt-6">
+          <FreezeDodgeGame />
         </div>
       </div>
     </div>

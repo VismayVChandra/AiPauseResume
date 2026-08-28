@@ -6,37 +6,38 @@ import { cn } from "@/lib/utils";
 import {
   createGame,
   stepGame,
-  tryJump,
-  displayScore,
-  type GameData,
-  type Obstacle,
+  gapCenter,
+  currentFreq,
+  type DodgeGameData,
+  type Gate,
   W,
   H,
-  GROUND_Y,
   PLAYER_X,
-  PLAYER_W,
-  PLAYER_H,
-} from "@/lib/runner-game";
+  PLAYER_SIZE,
+  GATE_W,
+  GATE_GAP_H,
+} from "@/lib/freeze-dodge-game";
 
-// A tiny endless-runner to play while the AI is working — the controls are
-// Pause and Resume on purpose, since that's the whole product name. The
-// player is a little resume sheet hopping over the things that get in the
-// way of a job hunt.
-//
-// All the simulation lives in lib/runner-game.ts so it can be tested
-// headlessly (`npm test`) — requestAnimationFrame never fires in a hidden
-// tab, so the loop below can't be exercised by an automated browser check.
-// This component only owns rendering and controls.
+// Where the runner uses Pause as a stop-the-clock convenience, here Pause
+// is the actual puzzle: it freezes every gate's swing (and the scroll)
+// instantly, so you can line up a safe crossing with no time pressure —
+// then Resume to commit, at which point the gate you're lined up with
+// starts moving again. All simulation lives in lib/freeze-dodge-game.ts,
+// tested headlessly for the same reason as the runner (rAF never fires in
+// a hidden tab, so this loop can't be exercised by an automated check).
 
 type GameState = "idle" | "running" | "paused" | "over";
 
-const HIGH_SCORE_KEY = "pauseresume_game_best";
+const HIGH_SCORE_KEY = "pauseresume_dodge_best";
 
-export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
+export function FreezeDodgeGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dataRef = useRef<GameData>(createGame());
+  const dataRef = useRef<DodgeGameData>(createGame());
   const stateRef = useRef<GameState>("idle");
   const rafRef = useRef<number | null>(null);
+  const keysRef = useRef({ up: false, down: false });
+  const pointerTargetRef = useRef<number | null>(null);
+  const hoveredRef = useRef(false);
   const paletteRef = useRef({
     ink: "#1f2937",
     brand: "#0f766e",
@@ -48,14 +49,7 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
   const [state, setState] = useState<GameState>("idle");
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
-  const startedOnceRef = useRef(false);
-  // Scoped to hover so this game and any other keyboard-driven game
-  // stacked on the same page (see FreezeDodgeGame) don't both react to the
-  // same key press.
-  const hoveredRef = useRef(false);
 
-  // Keep the ref in lockstep with React state so the rAF loop (which never
-  // re-creates) always reads the current phase.
   function setGameState(next: GameState) {
     stateRef.current = next;
     setState(next);
@@ -66,14 +60,10 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
       const stored = Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
       if (Number.isFinite(stored)) setBest(stored);
     } catch {
-      // storage blocked — the game just won't remember a best score
+      // storage blocked — no memory of a best score, not fatal
     }
-
-    // Pull the real palette off the document so the game matches the app
-    // instead of hardcoding a second set of colours.
     const css = getComputedStyle(document.documentElement);
-    const read = (name: string, fallback: string) =>
-      css.getPropertyValue(name).trim() || fallback;
+    const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
     paletteRef.current = {
       ink: read("--foreground", "#1f2937"),
       brand: read("--brand", "#0f766e"),
@@ -95,33 +85,17 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
     });
   }, []);
 
-  const jump = useCallback(() => {
-    const d = dataRef.current;
-    const s = stateRef.current;
-    if (s === "running") {
-      tryJump(d);
-      return;
-    }
-    if (s === "idle" || s === "over") {
-      dataRef.current = createGame();
-      setScore(0);
-      setGameState("running");
-      if (!startedOnceRef.current) {
-        startedOnceRef.current = true;
-        onFirstStart?.();
-      }
-    }
-  }, [onFirstStart]);
+  const start = useCallback(() => {
+    dataRef.current = createGame();
+    setScore(0);
+    setGameState("running");
+  }, []);
 
-  // The draw+step loop. Set up once; it reads phase from stateRef each frame
-  // so pausing doesn't tear it down and lose the run.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
     if (!context) return;
-    // Bound to a const so the nested draw functions below keep the
-    // non-null narrowing (TS drops it across function boundaries).
     const ctx = context;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -129,32 +103,29 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
     canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
 
-    function drawPlayer(d: GameData) {
+    function drawPlayer(y: number) {
       const p = paletteRef.current;
-      const x = PLAYER_X;
-      const y = d.y;
-      // the "resume sheet"
-      ctx.fillStyle = p.paper;
-      ctx.strokeStyle = p.ink;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(x, y, PLAYER_W, PLAYER_H, 3);
-      ctx.fill();
-      ctx.stroke();
-      // text lines on the sheet
+      // the token is a little pause icon — you ARE the pause button here
       ctx.fillStyle = p.brand;
-      ctx.fillRect(x + 4, y + 5, 9, 2.5);
-      ctx.fillStyle = p.line;
-      ctx.fillRect(x + 4, y + 11, 12, 1.8);
-      ctx.fillRect(x + 4, y + 15, 12, 1.8);
-      ctx.fillRect(x + 4, y + 19, 8, 1.8);
+      ctx.beginPath();
+      ctx.roundRect(PLAYER_X - PLAYER_SIZE / 2, y - PLAYER_SIZE / 2, 5, PLAYER_SIZE, 1.5);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(PLAYER_X + PLAYER_SIZE / 2 - 5, y - PLAYER_SIZE / 2, 5, PLAYER_SIZE, 1.5);
+      ctx.fill();
     }
 
-    function drawObstacle(o: Obstacle) {
+    function drawGate(g: Gate, gateClock: number, freq: number) {
       const p = paletteRef.current;
+      const c = gapCenter(g, gateClock, freq);
+      const gapTop = c - GATE_GAP_H / 2;
+      const gapBottom = c + GATE_GAP_H / 2;
       ctx.fillStyle = p.ink;
       ctx.beginPath();
-      ctx.roundRect(o.x, GROUND_Y - o.h, o.w, o.h, 2);
+      ctx.roundRect(g.x, 0, GATE_W, Math.max(gapTop, 0), 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(g.x, gapBottom, GATE_W, Math.max(H - gapBottom, 0), 2);
       ctx.fill();
     }
 
@@ -163,41 +134,45 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
       const p = paletteRef.current;
       ctx.clearRect(0, 0, W, H);
 
-      // ground
       ctx.strokeStyle = p.line;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+      const freq = currentFreq(d.score);
+      for (const g of d.gates) drawGate(g, d.gateClock, freq);
+      drawPlayer(d.playerY);
+
+      // a faint trail showing the gap's swing range, for readability
+      ctx.strokeStyle = p.muted;
+      ctx.setLineDash([2, 3]);
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, GROUND_Y + 1);
-      ctx.lineTo(W, GROUND_Y + 1);
+      ctx.moveTo(PLAYER_X, 0);
+      ctx.lineTo(PLAYER_X, H);
       ctx.stroke();
-
-      // dashes on the ground for a sense of speed
-      ctx.fillStyle = p.line;
-      for (let i = 0; i < 14; i++) {
-        const x = ((i * 60 - d.groundOffset) % (W + 60) + W + 60) % (W + 60);
-        ctx.fillRect(x, GROUND_Y + 7, 18, 1.5);
-      }
-
-      d.obstacles.forEach(drawObstacle);
-      drawPlayer(d);
+      ctx.setLineDash([]);
     }
 
     function step() {
       const d = dataRef.current;
-      stepGame(d);
+      const up = keysRef.current.up || (pointerTargetRef.current !== null && d.playerY - pointerTargetRef.current > 2);
+      const down = keysRef.current.down || (pointerTargetRef.current !== null && pointerTargetRef.current - d.playerY > 2);
+      const running = stateRef.current === "running";
+      stepGame(d, { up, down, running });
 
-      const shown = displayScore(d);
       if (d.dead) {
-        setScore(shown);
-        commitBest(shown);
+        setScore(d.score);
+        commitBest(d.score);
         setGameState("over");
         return;
       }
-      if (d.ticks % 3 === 0) setScore(shown);
+      setScore(d.score);
     }
 
     function frame() {
-      if (stateRef.current === "running") step();
+      // Steering always applies (even paused) — only advancing the world
+      // is gated on "running", handled inside stepGame itself.
+      if (stateRef.current === "running" || stateRef.current === "paused") step();
       render();
       rafRef.current = requestAnimationFrame(frame);
     }
@@ -208,40 +183,73 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
     };
   }, [commitBest]);
 
-  // Space / ArrowUp to jump — scoped to hover, not just "this game is on
-  // screen", since another keyboard-driven game can be stacked below it on
-  // the same page and would otherwise also react to ArrowUp.
+  // Scoped to hover so this game and the runner above it don't both react
+  // to the same arrow-key press when they're stacked on one page.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
+    function onKeyDown(e: KeyboardEvent) {
       if (!hoveredRef.current) return;
-      if (e.code !== "Space" && e.code !== "ArrowUp") return;
       const el = document.activeElement;
       if (el && ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return;
-      e.preventDefault();
-      jump();
+      if (e.code === "ArrowUp" || e.code === "KeyW") {
+        e.preventDefault();
+        keysRef.current.up = true;
+      } else if (e.code === "ArrowDown" || e.code === "KeyS") {
+        e.preventDefault();
+        keysRef.current.down = true;
+      }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [jump]);
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code === "ArrowUp" || e.code === "KeyW") keysRef.current.up = false;
+      else if (e.code === "ArrowDown" || e.code === "KeyS") keysRef.current.down = false;
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
 
   const canPause = state === "running";
   const canResume = state === "paused";
+
+  function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    e.preventDefault();
+    if (state === "idle" || state === "over") {
+      start();
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    pointerTargetRef.current = ((e.clientY - rect.top) / rect.height) * H;
+  }
+  function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (pointerTargetRef.current === null) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    pointerTargetRef.current = ((e.clientY - rect.top) / rect.height) * H;
+  }
+  function clearPointer() {
+    pointerTargetRef.current = null;
+  }
 
   return (
     <div
       className="w-full rounded-xl border border-border bg-card p-3"
       onPointerEnter={() => (hoveredRef.current = true)}
-      onPointerLeave={() => (hoveredRef.current = false)}
+      onPointerLeave={() => {
+        hoveredRef.current = false;
+        keysRef.current.up = false;
+        keysRef.current.down = false;
+      }}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-medium text-muted-foreground">
           {state === "over"
-            ? "Ouch — that one got you."
+            ? "Caught mid-swing."
             : state === "paused"
-              ? "Paused. Take your time."
+              ? "World frozen — line up, then Resume."
               : state === "running"
-                ? "Jump the gaps."
-                : "A little something while you wait."}
+                ? "Steer through the gaps."
+                : "Pause freezes every gate — plan your crossing."}
         </p>
         <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
           <span className="text-foreground">{String(score).padStart(4, "0")}</span>
@@ -257,13 +265,13 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
       <div className="relative overflow-hidden rounded-lg bg-background">
         <canvas
           ref={canvasRef}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            jump();
-          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={clearPointer}
+          onPointerLeave={clearPointer}
           style={{ aspectRatio: `${W} / ${H}` }}
           className="w-full cursor-pointer touch-none select-none"
-          aria-label="Mini runner game — press space or tap to jump"
+          aria-label="Freeze-frame dodging game — hold up/down or drag to steer, tap to start"
           role="img"
         />
 
@@ -271,7 +279,7 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="pointer-events-auto rounded-full bg-foreground/85 px-3 py-1.5 text-[11px] font-medium text-background">
               {state === "idle"
-                ? "Tap or press Space to play"
+                ? "Tap to start, drag or ↑↓ to steer"
                 : state === "paused"
                   ? "Paused"
                   : `Score ${score} — tap to try again`}
@@ -280,7 +288,6 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
         )}
       </div>
 
-      {/* The controls the whole site is named after. */}
       <div className="mt-2.5 flex items-center gap-2">
         <button
           onClick={() => setGameState("paused")}
@@ -304,11 +311,7 @@ export function PauseRunGame({ onFirstStart }: { onFirstStart?: () => void }) {
           Resume
         </button>
         <button
-          onClick={() => {
-            dataRef.current = createGame();
-            setScore(0);
-            setGameState("running");
-          }}
+          onClick={start}
           className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <RotateCcw className="h-3 w-3" />
