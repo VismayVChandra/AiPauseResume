@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --experimental-strip-types tests/runner-game.test.mts && node --experimental-strip-types tests/freeze-dodge-game.test.mts && node --experimental-strip-types tests/stack-resume-game.test.mts && node --experimental-strip-types tests/split-self-game.test.mts && node --experimental-strip-types tests/plan-play-game.test.mts"
+    "test": "node --experimental-strip-types tests/runner-game.test.mts && node --experimental-strip-types tests/freeze-dodge-game.test.mts && node --experimental-strip-types tests/stack-resume-game.test.mts && node --experimental-strip-types tests/split-self-game.test.mts && node --experimental-strip-types tests/plan-play-game.test.mts && node --experimental-strip-types tests/hold-resume-game.test.mts"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",

@@ -8,6 +8,7 @@ import { FreezeDodgeGame } from "@/components/genforge/freeze-dodge-game";
 import { StackResumeGame } from "@/components/genforge/stack-resume-game";
 import { SplitSelfGame } from "@/components/genforge/split-self-game";
 import { PlanPlayGame } from "@/components/genforge/plan-play-game";
+import { HoldResumeGame } from "@/components/genforge/hold-resume-game";
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
@@ -148,6 +149,18 @@ export function Landing({ onStart }: { onStart: () => void }) {
         </p>
         <div className="mt-6">
           <PlanPlayGame />
+        </div>
+
+        <p className="mt-8 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          And a sixth, with no buttons at all
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Press and hold directly on it — time only exists while your finger is down, and that
+          includes your own movement. Let go and everything freezes solid. A stamina meter means
+          you can&apos;t just hold through the whole thing; you have to burst.
+        </p>
+        <div className="mt-6">
+          <HoldResumeGame />
         </div>
       </div>
     </div>
