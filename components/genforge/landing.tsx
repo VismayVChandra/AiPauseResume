@@ -1,11 +1,13 @@
 "use client";
 
-import { ArrowRight, Sparkles, FileText, Gauge } from "lucide-react";
+import { Gamepad2, ArrowRight, Sparkles, FileText, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PauseResumeMark, LinkedInGlyph } from "@/components/genforge/logo";
+import { PauseRunGame } from "@/components/genforge/pause-run-game";
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
+    <>
     <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-0">
       <div>
         <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -79,6 +81,26 @@ export function Landing({ onStart }: { onStart: () => void }) {
         <DocumentHero />
       </div>
     </div>
+
+    <div className="border-t border-border/70 bg-card/40">
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+          <Gamepad2 className="h-3.5 w-3.5 text-brand" />
+          Just for fun
+        </span>
+        <h2 className="mt-4 font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
+          Since it&apos;s called Pause/Resume…
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          A tiny game with the same controls as the product. Play whenever you like — no resume
+          required.
+        </p>
+        <div className="mt-6">
+          <PauseRunGame />
+        </div>
+      </div>
+    </div>
+    </>
   );
 }
 
