@@ -80,14 +80,14 @@ const STATUS_TONE: Record<string, { pill: string; stripe: string; chip: string }
     chip: "border-border text-muted-foreground",
   },
   applied: {
-    pill: "bg-blue-50 text-blue-700",
+    pill: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
     stripe: "bg-blue-400",
-    chip: "border-blue-200 bg-blue-50 text-blue-700",
+    chip: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/40 dark:text-blue-300",
   },
   interviewing: {
-    pill: "bg-amber-50 text-amber-800",
+    pill: "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
     stripe: "bg-amber-400",
-    chip: "border-amber-200 bg-amber-50 text-amber-800",
+    chip: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-300",
   },
   offer: {
     pill: "bg-brand-muted/60 text-brand",
@@ -472,7 +472,7 @@ export function MyResumesView({
                           {r.unresolvedCommentCount > 0 && (
                             <span
                               title={`${r.unresolvedCommentCount} unresolved comment${r.unresolvedCommentCount === 1 ? "" : "s"}`}
-                              className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+                              className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
                             >
                               <MessageSquare className="h-2.5 w-2.5" />
                               {r.unresolvedCommentCount}
@@ -504,7 +504,7 @@ export function MyResumesView({
                       </button>
 
                       {followUpDays !== null && (
-                        <div className="flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-800">
+                        <div className="flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                           <BellRing className="h-3 w-3 shrink-0" />
                           Applied {followUpDays} days ago — maybe follow up.
                         </div>

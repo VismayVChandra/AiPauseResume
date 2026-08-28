@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendMagicLink } from "@/lib/supabase";
 import { PauseResumeWordmark } from "@/components/genforge/logo";
+import { ThemeToggle } from "@/components/genforge/theme-toggle";
 
 // A real page rather than the old header-corner popover — the popover
 // worked fine on desktop but had nowhere good to lay itself out on a
@@ -38,10 +39,11 @@ export default function SignInPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border/70 px-6 py-4">
+      <header className="flex items-center justify-between border-b border-border/70 px-6 py-4">
         <Link href="/">
           <PauseResumeWordmark />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="flex flex-1 items-center justify-center px-6 py-12">

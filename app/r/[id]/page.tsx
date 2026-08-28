@@ -5,6 +5,7 @@ import { TailoredResumeSchema, type CommentSection } from "@/lib/schemas";
 import { supabaseServer } from "@/lib/supabase";
 import { PauseResumeWordmark } from "@/components/genforge/logo";
 import { ResumeComments } from "@/components/genforge/resume-comments";
+import { ThemeToggle } from "@/components/genforge/theme-toggle";
 import type { TailoredResume } from "@/types/resume";
 
 // Only "projects"/"certifications" are ever individually hidden (see
@@ -61,8 +62,9 @@ export default async function PublicResumePage({ params }: { params: { id: strin
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border/70 px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border/70 px-6 py-3">
         <PauseResumeWordmark />
+        <ThemeToggle />
       </header>
       <main className="flex-1 p-4 sm:p-8">
         <div className="mx-auto max-w-4xl">

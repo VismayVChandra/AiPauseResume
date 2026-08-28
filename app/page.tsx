@@ -16,6 +16,7 @@ import { ExportStep } from "@/components/ExportStep";
 import { MyResumesView, SavedResumeSummary } from "@/components/genforge/my-resumes";
 import { SaveAccountPrompt } from "@/components/genforge/save-account-prompt";
 import { HeaderAuth } from "@/components/genforge/header-auth";
+import { ThemeToggle } from "@/components/genforge/theme-toggle";
 import { RawProfile, TailoredResume, TemplateId, CoverLetter } from "@/types/resume";
 import { getOrCreateSessionId, supabaseBrowser, getAccessToken, signOut } from "@/lib/supabase";
 
@@ -348,6 +349,7 @@ export default function Home() {
             ) : (
               <HeaderAuth />
             )}
+            <ThemeToggle />
           </div>
         </div>
       </header>

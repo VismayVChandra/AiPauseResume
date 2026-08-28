@@ -61,6 +61,43 @@
   --linkedin-muted: oklch(var(--linkedin-muted-raw));
 }
 
+/* Dark theme — same token set, same derivation pattern, just the `-raw`
+ * channels redefined. Everything downstream (the full `var(--x)` colours,
+ * every Tailwind utility that points at them) picks this up automatically
+ * with zero component changes, since nothing in the app hardcodes a light
+ * colour outside these tokens.
+ *
+ * `--paper`/`--paper-edge` deliberately stay light in both themes — that
+ * token is the resume "sheet" mockup, and exports are always a white
+ * document regardless of site theme, so the preview should look like
+ * what will actually be printed.
+ *
+ * The theme itself is chosen by components/genforge/theme-toggle.tsx,
+ * which always sets data-theme to an explicit "light" or "dark" on first
+ * paint (localStorage choice, else system preference) — so this selector
+ * is the single source of truth, no separate prefers-color-scheme
+ * fallback layer needed here. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background-raw: 0.16 0.012 83;
+  --foreground-raw: 0.92 0.01 255;
+  --card-raw: 0.205 0.012 83;
+  --card-foreground-raw: 0.92 0.01 255;
+  --primary-raw: 0.88 0.012 255;
+  --primary-foreground-raw: 0.18 0.014 255;
+  --muted-raw: 0.24 0.01 83;
+  --muted-foreground-raw: 0.66 0.012 255;
+  --destructive-raw: 0.62 0.19 27;
+  --destructive-foreground-raw: 0.98 0.005 83;
+  --border-raw: 0.3 0.012 83;
+  --ring-raw: 0.6 0.1 168;
+  --brand-raw: 0.56 0.1 168;
+  --brand-foreground-raw: 0.98 0.006 83;
+  --brand-muted-raw: 0.26 0.045 168;
+  --linkedin-raw: 0.62 0.07 245;
+  --linkedin-muted-raw: 0.26 0.035 245;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);

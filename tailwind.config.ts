@@ -1,6 +1,12 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Matches the data-theme attribute set by components/genforge/
+  // theme-toggle.tsx (and the FOUC-prevention script in app/layout.tsx) —
+  // lets the handful of hardcoded Tailwind palette colors (status pill
+  // amber/blue, not part of the CSS-variable token system) get real
+  // dark: variants instead of just floating on the dark background as-is.
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

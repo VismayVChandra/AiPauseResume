@@ -21,9 +21,18 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "light",
-  themeColor: "#f7f4ee",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f4ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#171519" },
+  ],
 };
+
+// Runs synchronously before first paint so there's no flash of the wrong
+// theme: resolves data-theme to an explicit "light" or "dark" (stored
+// choice from components/genforge/theme-toggle.tsx, else system
+// preference) before any CSS that depends on it has a chance to render.
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("pauseresume_theme");var d=s?s==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.setAttribute("data-theme",d?"dark":"light");}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -31,6 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable} bg-background`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-screen font-sans antialiased">{children}</body>
     </html>
   );

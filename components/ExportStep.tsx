@@ -223,7 +223,7 @@ export function ExportStep({
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
                   pageCount > 1
-                    ? "bg-amber-50 text-amber-800"
+                    ? "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
                     : "bg-brand-muted/50 text-brand"
                 )}
               >
@@ -314,12 +314,12 @@ export function ExportStep({
           </div>
 
           {pageCount !== null && pageCount > 1 && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <h3 className="flex items-center gap-1.5 text-sm font-medium text-amber-900">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800/40 dark:bg-amber-950/40">
+              <h3 className="flex items-center gap-1.5 text-sm font-medium text-amber-900 dark:text-amber-200">
                 <Scissors className="h-4 w-4" />
                 Runs to {pageCount} pages
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-amber-800">
+              <p className="mt-1 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
                 Tighten wording and trim the least-relevant bullet or two to fit one page — never
                 adds anything, only shortens what&apos;s already there.
               </p>

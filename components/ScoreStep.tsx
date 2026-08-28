@@ -27,7 +27,7 @@ import { CalendarClock } from "lucide-react";
 
 function scoreColor(score: number) {
   if (score >= 80) return { text: "text-brand", ring: "var(--brand)", bg: "bg-brand-muted/50" };
-  if (score >= 60) return { text: "text-amber-600", ring: "#d97706", bg: "bg-amber-50" };
+  if (score >= 60) return { text: "text-amber-600 dark:text-amber-400", ring: "#d97706", bg: "bg-amber-50" };
   return { text: "text-destructive", ring: "var(--destructive)", bg: "bg-destructive/10" };
 }
 
@@ -540,7 +540,7 @@ export function ScoreStep({
                   <button
                     key={i}
                     onClick={() => addMissingKeyword(k)}
-                    className="group inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 transition-colors hover:border-brand/40 hover:bg-brand-muted/40 hover:text-brand"
+                    className="group inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 transition-colors hover:border-brand/40 hover:bg-brand-muted/40 hover:text-brand dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-300"
                   >
                     <Plus className="h-3 w-3 opacity-60 transition-opacity group-hover:opacity-100" />
                     {k}
@@ -572,7 +572,7 @@ export function ScoreStep({
             </div>
             <div className="rounded-xl border border-border bg-card p-5">
               <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 Areas to improve
               </h3>
               <ul className="mt-3 flex flex-col gap-2">
@@ -648,18 +648,18 @@ export function ScoreStep({
           )}
 
           {timelineGaps.length > 0 && (
-            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
-              <h3 className="flex items-center gap-2 text-sm font-medium text-amber-900">
+            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800/40 dark:bg-amber-950/40">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
                 <CalendarClock className="h-4 w-4" />
                 Career timeline check
               </h3>
-              <p className="mt-1 text-xs text-amber-800">
+              <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
                 A deterministic date check (not AI) — gaps of 3+ months between roles, in case
                 they&apos;re worth a line in your summary or an answer ready for the interview.
               </p>
               <ul className="mt-3 flex flex-col gap-1.5">
                 {timelineGaps.map((g, i) => (
-                  <li key={i} className="text-xs leading-relaxed text-amber-900">
+                  <li key={i} className="text-xs leading-relaxed text-amber-900 dark:text-amber-200">
                     <b>{g.months}-month gap</b> between {g.beforeLabel} and {g.afterLabel}
                   </li>
                 ))}

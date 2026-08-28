@@ -95,7 +95,7 @@ export function KeywordMatchPanel({
                     <button
                       key={i}
                       onClick={() => add(k)}
-                      className="group inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 transition-colors hover:border-brand/40 hover:bg-brand-muted/40 hover:text-brand"
+                      className="group inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 transition-colors hover:border-brand/40 hover:bg-brand-muted/40 hover:text-brand dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-300"
                     >
                       <Plus className="h-3 w-3 opacity-60 transition-opacity group-hover:opacity-100" />
                       {k}

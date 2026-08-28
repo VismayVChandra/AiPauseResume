@@ -389,7 +389,7 @@ function AnswerPractice({ question, resume }: { question: string; resume: Tailor
             <ul className="flex flex-col gap-1">
               {feedback.improvements.map((s, i) => (
                 <li key={i} className="flex items-start gap-1.5 text-xs leading-relaxed text-foreground/85">
-                  <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+                  <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
                   {s}
                 </li>
               ))}
