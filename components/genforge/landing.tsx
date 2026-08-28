@@ -7,6 +7,7 @@ import { PauseRunGame } from "@/components/genforge/pause-run-game";
 import { FreezeDodgeGame } from "@/components/genforge/freeze-dodge-game";
 import { StackResumeGame } from "@/components/genforge/stack-resume-game";
 import { SplitSelfGame } from "@/components/genforge/split-self-game";
+import { PlanPlayGame } from "@/components/genforge/plan-play-game";
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
@@ -135,6 +136,18 @@ export function Landing({ onStart }: { onStart: () => void }) {
         </p>
         <div className="mt-6">
           <SplitSelfGame />
+        </div>
+
+        <p className="mt-8 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          And a fifth, with no live control at all
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          While Paused, every hazard is frozen and you tap out a full route in advance — no clock,
+          no pressure. Resume, and you just watch it play out for real. Pause again mid-run to
+          revise whatever&apos;s still ahead of you.
+        </p>
+        <div className="mt-6">
+          <PlanPlayGame />
         </div>
       </div>
     </div>
