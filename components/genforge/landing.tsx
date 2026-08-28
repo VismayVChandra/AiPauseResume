@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PauseResumeMark, LinkedInGlyph } from "@/components/genforge/logo";
 import { PauseRunGame } from "@/components/genforge/pause-run-game";
 import { FreezeDodgeGame } from "@/components/genforge/freeze-dodge-game";
+import { StackResumeGame } from "@/components/genforge/stack-resume-game";
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
@@ -109,6 +110,17 @@ export function Landing({ onStart }: { onStart: () => void }) {
         </p>
         <div className="mt-6">
           <FreezeDodgeGame />
+        </div>
+
+        <p className="mt-8 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          And a third, where Pause is how you aim
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          A block sweeps back and forth above your stack. Pause freezes it in place so you can
+          judge the alignment with no clock running, then drop whenever you&apos;re ready.
+        </p>
+        <div className="mt-6">
+          <StackResumeGame />
         </div>
       </div>
     </div>
