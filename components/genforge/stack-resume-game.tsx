@@ -11,6 +11,7 @@ import {
   W,
   H,
 } from "@/lib/stack-resume-game";
+import { useGamePalette } from "@/lib/use-game-palette";
 
 // Third game, third relationship to Pause: no reflexes or steering here,
 // just a block sweeping back and forth. Pause freezes the sweep so you can
@@ -33,13 +34,7 @@ export function StackResumeGame() {
   const stateRef = useRef<GameState>("idle");
   const rafRef = useRef<number | null>(null);
   const hoveredRef = useRef(false);
-  const paletteRef = useRef({
-    ink: "#1f2937",
-    brand: "#0f766e",
-    muted: "#9ca3af",
-    paper: "#ffffff",
-    line: "#d1d5db",
-  });
+  const paletteRef = useGamePalette();
 
   const [state, setState] = useState<GameState>("idle");
   const [score, setScore] = useState(0);
@@ -57,15 +52,6 @@ export function StackResumeGame() {
     } catch {
       // storage blocked — no memory of a best score, not fatal
     }
-    const css = getComputedStyle(document.documentElement);
-    const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-    paletteRef.current = {
-      ink: read("--foreground", "#1f2937"),
-      brand: read("--brand", "#0f766e"),
-      muted: read("--muted-foreground", "#9ca3af"),
-      paper: read("--paper", "#ffffff"),
-      line: read("--border", "#d1d5db"),
-    };
   }, []);
 
   const commitBest = useCallback((value: number) => {

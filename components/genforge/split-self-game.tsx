@@ -16,6 +16,7 @@ import {
   PLAYER_SIZE,
   PLATFORM_W,
 } from "@/lib/split-self-game";
+import { useGamePalette } from "@/lib/use-game-palette";
 
 // Fourth game, and the one where Pause stops being a convenience and
 // becomes the actual building material: pressing it freezes YOU into a
@@ -35,13 +36,7 @@ export function SplitSelfGame() {
   const stateRef = useRef<GameState>("idle");
   const rafRef = useRef<number | null>(null);
   const hoveredRef = useRef(false);
-  const paletteRef = useRef({
-    ink: "#1f2937",
-    brand: "#0f766e",
-    muted: "#9ca3af",
-    paper: "#ffffff",
-    line: "#d1d5db",
-  });
+  const paletteRef = useGamePalette();
 
   const [state, setState] = useState<GameState>("idle");
   const [score, setScore] = useState(0);
@@ -59,15 +54,6 @@ export function SplitSelfGame() {
     } catch {
       // storage blocked — no memory of a best score, not fatal
     }
-    const css = getComputedStyle(document.documentElement);
-    const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-    paletteRef.current = {
-      ink: read("--foreground", "#1f2937"),
-      brand: read("--brand", "#0f766e"),
-      muted: read("--muted-foreground", "#9ca3af"),
-      paper: read("--paper", "#ffffff"),
-      line: read("--border", "#d1d5db"),
-    };
   }, []);
 
   const commitBest = useCallback((value: number) => {
