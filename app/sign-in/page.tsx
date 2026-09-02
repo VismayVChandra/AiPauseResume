@@ -4,8 +4,8 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { sendMagicLink } from "@/lib/supabase";
-import { PauseResumeWordmark } from "@/components/genforge/logo";
+import { sendMagicLink, signInWithGoogle } from "@/lib/supabase";
+import { PauseResumeWordmark, GoogleGlyph } from "@/components/genforge/logo";
 import { ThemeToggle } from "@/components/genforge/theme-toggle";
 
 // A real page rather than the old header-corner popover — the popover
@@ -19,6 +19,8 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -35,6 +37,19 @@ export default function SignInPage() {
       return;
     }
     setStatus("sent");
+  }
+
+  async function handleGoogle() {
+    setGoogleLoading(true);
+    setGoogleError(null);
+    // On success this navigates the browser to Google's consent screen and
+    // never returns — only a synchronous failure (provider not configured
+    // on the Supabase project yet) leaves us here to show an error.
+    const { error: oauthError } = await signInWithGoogle();
+    if (oauthError) {
+      setGoogleError(oauthError);
+      setGoogleLoading(false);
+    }
   }
 
   return (
@@ -92,7 +107,30 @@ export default function SignInPage() {
                   saved, from any device.
                 </p>
 
-                <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={googleLoading}
+                  className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  {googleLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <GoogleGlyph />
+                      Continue with Google
+                    </>
+                  )}
+                </button>
+                {googleError && <p className="mt-2 text-xs text-destructive">{googleError}</p>}
+
+                <div className="my-4 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[11px] text-muted-foreground">or</span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                   <label htmlFor="signin-email" className="sr-only">
                     Email address
                   </label>

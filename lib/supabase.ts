@@ -57,6 +57,21 @@ export async function sendMagicLink(email: string): Promise<{ error: string | nu
   return { error: error?.message ?? null };
 }
 
+// Same optional, never-required auth as the magic link — just a second
+// way in. Navigates the browser to Google's consent screen itself (that's
+// signInWithOAuth's default behavior in a browser context), so a
+// successful call never actually returns; only a synchronous failure
+// (e.g. the provider isn't enabled on the Supabase project yet) does.
+export async function signInWithGoogle(): Promise<{ error: string | null }> {
+  const { error } = await supabaseBrowser().auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+    },
+  });
+  return { error: error?.message ?? null };
+}
+
 export async function signOut(): Promise<void> {
   await supabaseBrowser().auth.signOut();
 }
