@@ -201,6 +201,19 @@ export function FreezeDodgeGame() {
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     e.preventDefault();
+    // Keeps pointermove/pointerup targeting this canvas even once the
+    // finger drags outside its (small, especially on mobile) bounds —
+    // without this, a short canvas makes it trivial to overshoot while
+    // steering, which used to silently drop control mid-drag. Guarded:
+    // the spec throws if the pointerId isn't currently "active" (an edge
+    // case a defensive try/catch costs nothing to rule out), and a
+    // capture failure should never block the rest of this handler.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // no capture this time — steering still works, just won't survive
+      // the finger leaving the canvas bounds
+    }
     if (state === "idle" || state === "over") {
       start();
       return;
@@ -254,7 +267,7 @@ export function FreezeDodgeGame() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={clearPointer}
-          onPointerLeave={clearPointer}
+          onPointerCancel={clearPointer}
           style={{ aspectRatio: `${W} / ${H}` }}
           className="w-full cursor-pointer touch-none select-none"
           aria-label="Freeze-frame dodging game — hold up/down or drag to steer, tap to start"

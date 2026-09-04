@@ -173,6 +173,20 @@ export function HoldResumeGame() {
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     e.preventDefault();
+    // Keeps pointermove/pointerup targeting this canvas even once the
+    // finger drags outside its (small, especially on mobile) bounds —
+    // this game is literally "hold and drag to aim," so without capture
+    // a short canvas made it trivial to release early just by steering
+    // near the top or bottom edge. Guarded: the spec throws if the
+    // pointerId isn't currently "active" (an edge case a defensive
+    // try/catch costs nothing to rule out), and a capture failure should
+    // never block the rest of this handler (starting/holding).
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // no capture this time — holding still works, just won't survive
+      // the finger leaving the canvas bounds
+    }
     if (stateRef.current === "idle" || stateRef.current === "over") {
       start();
     }
@@ -217,7 +231,6 @@ export function HoldResumeGame() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={release}
-          onPointerLeave={release}
           onPointerCancel={release}
           style={{ aspectRatio: `${W} / ${H}` }}
           className="w-full cursor-pointer touch-none select-none"
