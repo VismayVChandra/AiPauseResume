@@ -88,7 +88,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
     </div>
 
     <div className="border-t border-border/70 bg-card/40">
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
           <Gamepad2 className="h-3.5 w-3.5 text-brand" />
           Just for fun
@@ -100,7 +100,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           A tiny game with the same controls as the product. Play whenever you like — no resume
           required.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <PauseRunGame />
         </div>
 
@@ -111,7 +111,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           Here Pause freezes every moving gate mid-swing so you can line up a safe crossing with
           no time pressure — Resume, and it all starts moving again from right where it froze.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <FreezeDodgeGame />
         </div>
 
@@ -122,7 +122,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           A block sweeps back and forth above your stack. Pause freezes it in place so you can
           judge the alignment with no clock running, then drop whenever you&apos;re ready.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <StackResumeGame />
         </div>
 
@@ -135,7 +135,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           jump; the only way across is to jump, Pause partway over the gap, then Resume and jump
           again from the platform you just left behind.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <SplitSelfGame />
         </div>
 
@@ -147,7 +147,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           no pressure. Resume, and you just watch it play out for real. Pause again mid-run to
           revise whatever&apos;s still ahead of you.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <PlanPlayGame />
         </div>
 
@@ -159,7 +159,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           includes your own movement. Let go and everything freezes solid. A stamina meter means
           you can&apos;t just hold through the whole thing; you have to burst.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <HoldResumeGame />
         </div>
       </div>
